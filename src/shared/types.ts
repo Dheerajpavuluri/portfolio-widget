@@ -33,6 +33,31 @@ export interface Quote {
   asOf: string;
 }
 
+/** Whether US markets are trading right now. */
+export interface MarketStatus {
+  isOpen: boolean;
+  session: 'pre-market' | 'regular' | 'post-market' | null;
+  /** Name of today's holiday, when the market is closed for one. */
+  holiday: string | null;
+  /** 'clock' means Finnhub could not be asked, so this is a guess from regular trading hours. */
+  source: 'finnhub' | 'clock';
+}
+
+/** A price for one ticker, or the reason there is none. */
+export type QuoteResult = { status: 'ok'; quote: Quote } | { status: 'unavailable'; reason: string };
+
+/** Everything the window needs to show prices. Sent by the main process after every refresh. */
+export interface QuoteSnapshot {
+  market: MarketStatus | null;
+  quotes: Record<string, QuoteResult>;
+  /** What went wrong on the latest refresh, if anything. Prices from earlier refreshes are kept. */
+  error: string | null;
+  /** True when no Finnhub API key was found. */
+  missingKey: boolean;
+  /** How far behind real time the prices are, so the window can say so. */
+  delayMinutes: number;
+}
+
 /** The shape of the data file on disk. */
 export interface StoredData {
   /** Bumped when the shape changes, so old files can be migrated (see src/main/migrate.ts). */
@@ -41,7 +66,10 @@ export interface StoredData {
 }
 
 /** Every IPC channel the renderer may call. Main and preload both type-check against this. */
-export type IpcChannel = 'lots:list' | 'lots:add' | 'lots:update' | 'lots:delete';
+export type IpcChannel = 'lots:list' | 'lots:add' | 'lots:update' | 'lots:delete' | 'quotes:get';
+
+/** Messages the main process pushes to the renderer without being asked. */
+export type IpcEvent = 'quotes:updated';
 
 /** The calls the renderer can make. Implemented in the preload script. */
 export interface PortfolioApi {
@@ -49,4 +77,7 @@ export interface PortfolioApi {
   addLot(input: LotInput): Promise<Lot[]>;
   updateLot(id: string, input: LotInput): Promise<Lot[]>;
   deleteLot(id: string): Promise<Lot[]>;
+  getQuotes(): Promise<QuoteSnapshot>;
+  /** Calls the listener after every price refresh. Returns a function that stops listening. */
+  onQuotes(listener: (snapshot: QuoteSnapshot) => void): () => void;
 }
