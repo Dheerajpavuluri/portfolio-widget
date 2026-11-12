@@ -54,7 +54,8 @@ export function buildPositions(lots: Lot[]): Position[] {
   return [...byTicker.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([ticker, group]) => {
-      const sorted = [...group].sort((a, b) => a.boughtAt.localeCompare(b.boughtAt));
+      // Array sort is stable, so same-day lots keep the order they were added in.
+      const sorted = [...group].sort((a, b) => a.boughtOn.localeCompare(b.boughtOn));
       const shares = sum(sorted.map((lot) => lot.shares));
       const costBasis = sum(sorted.map(lotCost));
       return {
@@ -70,15 +71,14 @@ export function buildPositions(lots: Lot[]): Position[] {
 /**
  * The price a lot's day change is measured from.
  *
- * Normally that is the previous close. A lot bought during the same trading
- * day as the quote did not exist at yesterday's close, so measuring it from
+ * Normally that is the previous close. A lot bought on the same trading day
+ * as the quote did not exist at yesterday's close, so measuring it from
  * there would invent a gain or loss the user never had. Those lots are
  * measured from their buy price instead.
  */
 export function dayReferencePrice(lot: Lot, quote: Quote): number {
-  const boughtDay = marketDate(lot.boughtAt);
-  const quoteDay = marketDate(quote.asOf);
-  return boughtDay >= quoteDay ? lot.buyPrice : quote.previousClose;
+  // Both are YYYY-MM-DD, so comparing the strings compares the dates.
+  return lot.boughtOn >= marketDate(quote.asOf) ? lot.buyPrice : quote.previousClose;
 }
 
 export function summarizePosition(position: Position, quote: Quote): PositionResult {
@@ -128,9 +128,9 @@ export function summarizePortfolio(results: PositionResult[]): PortfolioResult {
 }
 
 /**
- * The calendar date in New York for a timestamp, as YYYY-MM-DD.
- * US markets run on New York time, so "today" means today there,
- * wherever the user happens to be.
+ * The calendar date in New York for a quote's timestamp, as YYYY-MM-DD.
+ * US markets run on New York time, so the trading day a quote belongs to
+ * is its date there, wherever the user happens to be.
  */
 export function marketDate(iso: string): string {
   return new Intl.DateTimeFormat('en-CA', {

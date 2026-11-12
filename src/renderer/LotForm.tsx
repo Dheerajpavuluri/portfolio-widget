@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import type { Lot, LotInput } from '../shared/types';
 import { validateLot, type LotField } from '../shared/validateLot';
-import { fromLocalInputValue, toLocalInputValue } from './format';
+import { localDate } from '../shared/dates';
 
 interface Props {
   /** The lot being edited, or undefined when adding a new one. */
@@ -16,18 +16,18 @@ interface FormValues {
   ticker: string;
   shares: string;
   buyPrice: string;
-  boughtAt: string;
+  boughtOn: string;
 }
 
 function initialValues(lot?: Lot): FormValues {
   if (!lot) {
-    return { ticker: '', shares: '', buyPrice: '', boughtAt: toLocalInputValue(new Date().toISOString()) };
+    return { ticker: '', shares: '', buyPrice: '', boughtOn: localDate(new Date()) };
   }
   return {
     ticker: lot.ticker,
     shares: String(lot.shares),
     buyPrice: String(lot.buyPrice),
-    boughtAt: toLocalInputValue(lot.boughtAt),
+    boughtOn: lot.boughtOn,
   };
 }
 
@@ -45,7 +45,7 @@ export function LotForm({ lot, onSave, onCancel }: Props) {
       // An empty box becomes NaN rather than 0, so it fails with a clear message.
       shares: values.shares.trim() === '' ? Number.NaN : Number(values.shares),
       buyPrice: values.buyPrice.trim() === '' ? Number.NaN : Number(values.buyPrice),
-      boughtAt: fromLocalInputValue(values.boughtAt),
+      boughtOn: values.boughtOn,
     });
     if (!result.ok) {
       setErrors(result.errors);
@@ -94,11 +94,12 @@ export function LotForm({ lot, onSave, onCancel }: Props) {
             placeholder="850.00"
           />
         </Field>
-        <Field label="Bought at" error={errors.boughtAt}>
+        <Field label="Bought on" error={errors.boughtOn}>
           <input
-            type="datetime-local"
-            value={values.boughtAt}
-            onChange={(e) => set('boughtAt')(e.target.value)}
+            type="date"
+            value={values.boughtOn}
+            max={localDate(new Date())}
+            onChange={(e) => set('boughtOn')(e.target.value)}
           />
         </Field>
       </div>

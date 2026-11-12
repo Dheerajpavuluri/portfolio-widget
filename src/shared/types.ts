@@ -6,8 +6,8 @@ export interface Lot {
   shares: number;
   /** Price paid per share, in USD. */
   buyPrice: number;
-  /** ISO 8601 timestamp of the purchase. */
-  boughtAt: string;
+  /** Date of the purchase as YYYY-MM-DD, with no time or time zone. */
+  boughtOn: string;
 }
 
 /** What the user types in. The id is assigned by the main process. */
@@ -16,7 +16,7 @@ export type LotInput = Omit<Lot, 'id'>;
 /** All lots for one ticker, plus the totals that come from them. */
 export interface Position {
   ticker: string;
-  /** Oldest purchase first. */
+  /** Oldest purchase first; lots from the same day stay in the order they were added. */
   lots: Lot[];
   shares: number;
   /** Total amount paid across all lots. */
@@ -35,8 +35,8 @@ export interface Quote {
 
 /** The shape of the data file on disk. */
 export interface StoredData {
-  /** Bumped when the shape changes, so old files can be migrated. */
-  version: 1;
+  /** Bumped when the shape changes, so old files can be migrated (see src/main/migrate.ts). */
+  version: 2;
   lots: Lot[];
 }
 

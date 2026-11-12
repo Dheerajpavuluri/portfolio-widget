@@ -9,14 +9,14 @@ import {
 } from './pnl.js';
 import type { Lot, Quote } from './types.js';
 
-function lot(id: string, ticker: string, shares: number, buyPrice: number, boughtAt: string): Lot {
-  return { id, ticker, shares, buyPrice, boughtAt };
+function lot(id: string, ticker: string, shares: number, buyPrice: number, boughtOn: string): Lot {
+  return { id, ticker, shares, buyPrice, boughtOn };
 }
 
 // One Micron share bought yesterday at $950 and one bought today at $850.
-const micronYesterday = lot('mu-1', 'MU', 1, 950, '2026-11-11T15:00:00.000Z');
-const micronToday = lot('mu-2', 'MU', 1, 850, '2026-11-12T17:00:00.000Z');
-const apple = lot('aapl-1', 'AAPL', 10, 200, '2026-10-01T14:30:00.000Z');
+const micronYesterday = lot('mu-1', 'MU', 1, 950, '2026-11-11');
+const micronToday = lot('mu-2', 'MU', 1, 850, '2026-11-12');
+const apple = lot('aapl-1', 'AAPL', 10, 200, '2026-10-01');
 
 const micronQuote: Quote = { price: 900, previousClose: 920, asOf: '2026-11-12T20:00:00.000Z' };
 const appleQuote: Quote = { price: 210, previousClose: 205, asOf: '2026-11-12T20:00:00.000Z' };
@@ -29,7 +29,7 @@ describe('lotPnl', () => {
   });
 
   it('handles fractional shares', () => {
-    expect(lotPnl(lot('x', 'MU', 0.5, 100, '2026-11-01T15:00:00Z'), 110)).toBeCloseTo(5);
+    expect(lotPnl(lot('x', 'MU', 0.5, 100, '2026-11-01'), 110)).toBeCloseTo(5);
   });
 });
 
@@ -42,6 +42,12 @@ describe('buildPositions', () => {
     expect(mu.avgCost).toBe(900);
   });
 
+  it('keeps same-day lots in the order they were added', () => {
+    const first = lot('a', 'MU', 0.2, 692.84, '2026-11-05');
+    const second = lot('b', 'MU', 0.2, 753.87, '2026-11-05');
+    expect(buildPositions([second, first])[0].lots.map((l) => l.id)).toEqual(['b', 'a']);
+  });
+
   it('lists lots oldest first and positions by ticker', () => {
     const positions = buildPositions([micronToday, apple, micronYesterday]);
     expect(positions.map((p) => p.ticker)).toEqual(['AAPL', 'MU']);
@@ -50,8 +56,8 @@ describe('buildPositions', () => {
 
   it('weights the average cost by shares', () => {
     const [p] = buildPositions([
-      lot('a', 'NVDA', 3, 100, '2026-11-01T15:00:00Z'),
-      lot('b', 'NVDA', 1, 200, '2026-11-02T15:00:00Z'),
+      lot('a', 'NVDA', 3, 100, '2026-11-01'),
+      lot('b', 'NVDA', 1, 200, '2026-11-02'),
     ]);
     // (3 * 100 + 1 * 200) / 4, not (100 + 200) / 2
     expect(p.avgCost).toBe(125);
@@ -103,11 +109,11 @@ describe('dayReferencePrice', () => {
     expect(dayReferencePrice(micronToday, micronQuote)).toBe(850);
   });
 
-  it('decides "today" in New York time, not UTC', () => {
-    // 03:00 UTC on Nov 13 is still the evening of Nov 12 in New York.
-    const lateBuy = lot('late', 'MU', 1, 880, '2026-11-13T03:00:00.000Z');
-    expect(marketDate(lateBuy.boughtAt)).toBe('2026-11-12');
-    expect(dayReferencePrice(lateBuy, micronQuote)).toBe(880);
+  it('takes the trading day from the quote in New York time, not UTC', () => {
+    // 00:30 UTC on Nov 13 is still 7:30 PM on Nov 12 in New York.
+    const eveningQuote = { ...micronQuote, asOf: '2026-11-13T00:30:00.000Z' };
+    expect(marketDate(eveningQuote.asOf)).toBe('2026-11-12');
+    expect(dayReferencePrice(micronToday, eveningQuote)).toBe(850);
   });
 });
 

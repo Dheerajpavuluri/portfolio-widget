@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { readFile, rename } from 'node:fs/promises';
+import { copyFile, readFile, rename } from 'node:fs/promises';
 import type { Lot, LotInput, StoredData } from '../shared/types.js';
 import { writeFileAtomic } from './atomicWrite.js';
+import { migrate } from './migrate.js';
 
 type Writer = (filePath: string, contents: string) => Promise<void>;
 
@@ -33,18 +34,27 @@ export class LotStore {
       throw error;
     }
 
-    const data = parseStoredData(text);
-    if (data) {
-      this.lots = data.lots;
+    const raw = parseJson(text);
+    const data = migrate(raw);
+
+    if (!data) {
+      // Keep the unreadable file instead of overwriting it, so nothing is lost
+      // and it can be fixed by hand.
+      const asidePath = `${this.filePath}.unreadable-${Date.now()}`;
+      await rename(this.filePath, asidePath);
+      console.warn(`Could not read ${this.filePath}. Moved it to ${asidePath} and started empty.`);
+      this.lots = [];
       return;
     }
 
-    // Keep the unreadable file instead of overwriting it, so nothing is lost
-    // and it can be fixed by hand.
-    const asidePath = `${this.filePath}.unreadable-${Date.now()}`;
-    await rename(this.filePath, asidePath);
-    console.warn(`Could not read ${this.filePath}. Moved it to ${asidePath} and started empty.`);
-    this.lots = [];
+    const oldVersion = (raw as { version: number }).version;
+    if (oldVersion !== data.version) {
+      // Keep a copy of the old file before upgrading it, in case the upgrade
+      // ever gets something wrong.
+      await copyFile(this.filePath, `${this.filePath}.v${oldVersion}-backup`);
+      await this.write(this.filePath, serialize(data.lots));
+    }
+    this.lots = data.lots;
   }
 
   list(): Lot[] {
@@ -72,8 +82,7 @@ export class LotStore {
   private change(apply: (lots: Lot[]) => Lot[]): Promise<Lot[]> {
     const run = this.queue.then(async () => {
       const next = apply(this.lots);
-      const data: StoredData = { version: 1, lots: next };
-      await this.write(this.filePath, JSON.stringify(data, null, 2));
+      await this.write(this.filePath, serialize(next));
       this.lots = next;
       return this.list();
     });
@@ -83,14 +92,15 @@ export class LotStore {
   }
 }
 
-function parseStoredData(text: string): StoredData | null {
+function parseJson(text: string): unknown {
   try {
-    const data = JSON.parse(text) as Partial<StoredData>;
-    if (data.version === 1 && Array.isArray(data.lots)) {
-      return { version: 1, lots: data.lots };
-    }
-    return null;
+    return JSON.parse(text);
   } catch {
     return null;
   }
+}
+
+function serialize(lots: Lot[]): string {
+  const data: StoredData = { version: 2, lots };
+  return JSON.stringify(data, null, 2);
 }

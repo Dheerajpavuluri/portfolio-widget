@@ -6,7 +6,7 @@ import type { LotInput } from '../shared/types.js';
 import { writeFileAtomic } from './atomicWrite.js';
 import { LotStore } from './lotStore.js';
 
-const micron: LotInput = { ticker: 'MU', shares: 1, buyPrice: 950, boughtAt: '2026-11-11T15:00:00.000Z' };
+const micron: LotInput = { ticker: 'MU', shares: 1, buyPrice: 950, boughtOn: '2026-11-11' };
 
 let dir: string;
 let file: string;
@@ -88,6 +88,24 @@ describe('LotStore', () => {
 
     await expect(store.add(micron)).rejects.toThrow('disk full');
     expect(store.list()).toEqual([]);
+  });
+
+  it('upgrades a version 1 file and keeps a backup of the original', async () => {
+    const v1 = JSON.stringify({
+      version: 1,
+      lots: [{ id: 'old', ticker: 'MU', shares: 0.2, buyPrice: 692.84, boughtAt: '2026-11-05T18:23:00.000Z' }],
+    });
+    await writeFile(file, v1);
+
+    const store = new LotStore(file);
+    await store.load();
+    const [lot] = store.list();
+    expect(lot).not.toHaveProperty('boughtAt');
+    expect(lot.boughtOn).toMatch(/^2026-11-0[45]$/); // depends on the time zone the test runs in
+
+    const saved = JSON.parse(await readFile(file, 'utf8'));
+    expect(saved.version).toBe(2);
+    expect(await readFile(join(dir, 'portfolio.json.v1-backup'), 'utf8')).toBe(v1);
   });
 
   it('moves an unreadable file aside instead of overwriting it', async () => {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Lot, Position } from '../shared/types';
-import { formatDateTime, formatMoney, formatShares } from './format';
+import { formatDate, formatMoney, formatShares } from './format';
 
 interface Props {
   position: Position;
@@ -48,7 +48,7 @@ function LotRow({ lot, onEdit, onDelete }: { lot: Lot } & Omit<Props, 'position'
         <span>
           {formatShares(lot.shares)} @ {formatMoney(lot.buyPrice)}
         </span>
-        <span className="muted small">{formatDateTime(lot.boughtAt)}</span>
+        <span className="muted small">{formatDate(lot.boughtOn)}</span>
       </div>
       <div className="lot-actions">
         {confirming ? (

@@ -1,3 +1,4 @@
+import { isCalendarDate, localDate } from './dates.js';
 import type { LotInput } from './types.js';
 
 export type LotField = keyof LotInput;
@@ -33,11 +34,11 @@ export function validateLot(raw: unknown, now: Date = new Date()): ValidationRes
     errors.buyPrice = 'Buy price must be a number above 0.';
   }
 
-  const boughtAt = typeof input.boughtAt === 'string' ? new Date(input.boughtAt) : null;
-  if (!boughtAt || Number.isNaN(boughtAt.getTime())) {
-    errors.boughtAt = 'Enter the date and time of the purchase.';
-  } else if (boughtAt.getTime() > now.getTime()) {
-    errors.boughtAt = 'The purchase time cannot be in the future.';
+  const boughtOn = typeof input.boughtOn === 'string' ? input.boughtOn : '';
+  if (!isCalendarDate(boughtOn)) {
+    errors.boughtOn = 'Enter the date of the purchase.';
+  } else if (boughtOn > localDate(now)) {
+    errors.boughtOn = 'The purchase date cannot be in the future.';
   }
 
   if (Object.keys(errors).length > 0) {
@@ -50,7 +51,7 @@ export function validateLot(raw: unknown, now: Date = new Date()): ValidationRes
       ticker,
       shares: shares as number,
       buyPrice: buyPrice as number,
-      boughtAt: (boughtAt as Date).toISOString(),
+      boughtOn,
     },
   };
 }

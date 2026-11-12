@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { validateLot } from './validateLot.js';
 
-const now = new Date('2026-11-12T20:00:00.000Z');
-const good = { ticker: 'mu', shares: 1, buyPrice: 850, boughtAt: '2026-11-12T17:00:00.000Z' };
+// Built from local parts so "today" is Nov 12 in any time zone the tests run in.
+const now = new Date(2026, 10, 12, 12, 0);
+const good = { ticker: 'mu', shares: 1, buyPrice: 850, boughtOn: '2026-11-12' };
 
 describe('validateLot', () => {
   it('accepts a valid lot and upper-cases the ticker', () => {
@@ -32,11 +33,15 @@ describe('validateLot', () => {
     }
   });
 
-  it('rejects missing, invalid and future purchase times', () => {
-    for (const boughtAt of [undefined, 'not a date', '2026-11-13T20:00:00.000Z']) {
-      const result = validateLot({ ...good, boughtAt }, now);
+  it('accepts a purchase made today', () => {
+    expect(validateLot({ ...good, boughtOn: '2026-11-12' }, now).ok).toBe(true);
+  });
+
+  it('rejects missing, malformed, impossible and future dates', () => {
+    for (const boughtOn of [undefined, '', 'not a date', '11/05/2026', '2026-11-05T10:00', '2026-02-30', '2026-11-13']) {
+      const result = validateLot({ ...good, boughtOn }, now);
       expect(result.ok).toBe(false);
-      if (!result.ok) expect(result.errors.boughtAt).toBeDefined();
+      if (!result.ok) expect(result.errors.boughtOn).toBeDefined();
     }
   });
 
