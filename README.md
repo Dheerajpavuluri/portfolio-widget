@@ -8,7 +8,7 @@ Built with Electron, React and TypeScript. Everything stays on my machine.
 
 This is milestone 1 of 6.
 
-- Add, edit and delete lots (ticker, shares, buy price, buy date and time), with validation
+- Add, edit and delete lots (ticker, shares, buy price per share, buy date), with validation
 - Lots of the same ticker grouped into one position, showing total shares, average cost and cost basis
 - Lots saved to a local JSON file, written atomically so a crash cannot corrupt it
 - P&L math for each lot, each position and the whole portfolio, including day change, with unit tests
@@ -48,7 +48,7 @@ The tests cover:
 
 - the P&L math, including the two-lot Micron case below (`src/shared/pnl.test.ts`)
 - lot validation (`src/shared/validateLot.test.ts`)
-- the file store: saving, reloading, concurrent saves, failed saves and unreadable files (`src/main/lotStore.test.ts`)
+- the file store: saving, reloading, concurrent saves, failed saves, unreadable files and upgrading old files (`src/main/lotStore.test.ts`, `src/main/migrate.test.ts`)
 
 ## How the P&L math works
 
@@ -74,7 +74,9 @@ Example: I buy one Micron share at $950 yesterday and another at $850 today. Mic
 
 In the example, Micron closed at $920 yesterday. The first lot is down $20 today (900 - 920). The second lot is up $50 (900 - 850). The position is up $30 for the day. If I measured both lots from the previous close, it would show -$40, a loss I never had.
 
-"Today" means today in New York, because that is the market's clock. A purchase at 8 PM Pacific counts as the same trading day even though it is already the next day in UTC.
+I record only the date of each purchase, not the time. The date is all the day-change rule needs: a lot counts as "bought today" when its date matches the trading day of the quote. That trading day is the quote's date in New York, because that is the market's clock, so a quote at 7 PM Eastern still belongs to that day even though it is already tomorrow in UTC.
+
+Dates are stored as plain `YYYY-MM-DD` text with no time zone, so "Nov 5" stays Nov 5 wherever the computer is. Lots bought on the same day are listed in the order I added them.
 
 All math runs at full precision; values are rounded to cents only when they are displayed. The functions in `src/shared/pnl.ts` are pure (no network, no files, no clock), which is what makes them easy to test.
 
@@ -94,6 +96,7 @@ Nothing is stored in the project folder, and nothing leaves the machine. Startin
 - Saves go through a queue, so two quick edits cannot overwrite each other.
 - The in-memory copy is updated only after the file is written, so a failed save never shows data that was not saved.
 - If the file cannot be read (for example after a manual edit went wrong), it is renamed to `portfolio.json.unreadable-<time>` instead of being overwritten, and the app starts empty.
+- The file has a `version` number. When the format changes, the app upgrades older files on startup and first saves a copy as `portfolio.json.v<old version>-backup`. Version 1 stored a full purchase timestamp; version 2 stores only the date, using the date the timestamp showed on my computer.
 
 API keys, once they are needed, will go in a local `.env` file. `.gitignore` excludes it.
 
