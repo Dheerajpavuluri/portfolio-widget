@@ -1,0 +1,26 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+dist-electron/
+release/
+coverage/
+
+# secrets and local config: API keys never go in the repo
+.env
+.env.*
+!.env.example
+config.local.json
+
+# local data, in case a data file ever lands in the project folder
+*.portfolio.json
+*.tmp
+
+# logs and OS files
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
