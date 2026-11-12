@@ -6,11 +6,13 @@ import { LotStore } from './lotStore.js';
 // Set by scripts/dev.mjs. When it is missing we load the built files from disk.
 const devServerUrl = process.env.VITE_DEV_SERVER_URL;
 
+let mainWindow: BrowserWindow | null = null;
+
 function isTrustedSender(url: string): boolean {
   return devServerUrl ? url.startsWith(devServerUrl) : url.startsWith('file://');
 }
 
-function createWindow(): void {
+function createWindow(): BrowserWindow {
   const window = new BrowserWindow({
     width: 420,
     height: 660,
@@ -37,22 +39,35 @@ function createWindow(): void {
   } else {
     void window.loadFile(join(__dirname, '../../dist/renderer/index.html'));
   }
+  return window;
 }
 
-app.whenReady().then(async () => {
+async function start(): Promise<void> {
   // userData is the per-user app folder, e.g. ~/Library/Application Support/portfolio-widget
   // on macOS or %APPDATA%\portfolio-widget on Windows. Nothing is stored in the project folder.
   const store = new LotStore(join(app.getPath('userData'), 'portfolio.json'));
   await store.load();
   registerLotHandlers(store, isTrustedSender);
-  createWindow();
-
-  // macOS keeps apps running with no windows; clicking the dock icon reopens one.
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  mainWindow = createWindow();
+  mainWindow.on('closed', () => {
+    mainWindow = null;
   });
-});
+}
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
-});
+// Two copies of the app would both write to the same data file, so only one
+// may run. Starting it again brings the open window to the front instead.
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (!mainWindow) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+  });
+
+  void app.whenReady().then(start);
+
+  // Closing the widget quits it on every platform, including macOS, where apps
+  // normally keep running in the background with no windows.
+  app.on('window-all-closed', () => app.quit());
+}

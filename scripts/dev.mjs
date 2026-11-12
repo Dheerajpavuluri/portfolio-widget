@@ -10,7 +10,13 @@ const compile = spawnSync('npm', ['run', 'build:electron'], { stdio: 'inherit', 
 if (compile.status !== 0) process.exit(compile.status ?? 1);
 
 const server = await createServer({ configFile: 'vite.config.mts' });
-await server.listen();
+try {
+  await server.listen();
+} catch (error) {
+  console.error(`\n${error.message}. The app is probably already running in another terminal.`);
+  console.error('Close it, or free the port with: lsof -ti :5173 | xargs kill\n');
+  process.exit(1);
+}
 const url = server.resolvedUrls.local[0];
 
 const electron = spawn(electronPath, ['.'], {
