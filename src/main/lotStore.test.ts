@@ -1,0 +1,120 @@
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import type { LotInput } from '../shared/types.js';
+import { writeFileAtomic } from './atomicWrite.js';
+import { LotStore } from './lotStore.js';
+
+const micron: LotInput = { ticker: 'MU', shares: 1, buyPrice: 950, boughtAt: '2026-11-11T15:00:00.000Z' };
+
+let dir: string;
+let file: string;
+
+beforeEach(async () => {
+  dir = await mkdtemp(join(tmpdir(), 'portfolio-widget-'));
+  file = join(dir, 'portfolio.json');
+});
+
+afterEach(async () => {
+  await rm(dir, { recursive: true, force: true });
+});
+
+describe('LotStore', () => {
+  it('starts empty when there is no file yet', async () => {
+    const store = new LotStore(file);
+    await store.load();
+    expect(store.list()).toEqual([]);
+  });
+
+  it('saves lots and reads them back in a new session', async () => {
+    const store = new LotStore(file);
+    await store.load();
+    const [saved] = await store.add(micron);
+    expect(saved).toMatchObject(micron);
+    expect(saved.id).toBeTruthy();
+
+    const reopened = new LotStore(file);
+    await reopened.load();
+    expect(reopened.list()).toEqual([saved]);
+  });
+
+  it('edits and deletes a lot', async () => {
+    const store = new LotStore(file);
+    await store.load();
+    const [saved] = await store.add(micron);
+
+    const [edited] = await store.update(saved.id, { ...micron, buyPrice: 940 });
+    expect(edited).toEqual({ ...saved, buyPrice: 940 });
+
+    expect(await store.remove(saved.id)).toEqual([]);
+  });
+
+  it('rejects edits to a lot that does not exist and leaves the file alone', async () => {
+    const store = new LotStore(file);
+    await store.load();
+    await store.add(micron);
+    const before = await readFile(file, 'utf8');
+
+    await expect(store.update('missing', micron)).rejects.toThrow('No lot with id missing');
+    await expect(store.remove('missing')).rejects.toThrow();
+    expect(await readFile(file, 'utf8')).toBe(before);
+  });
+
+  it('keeps every lot when many saves happen at once', async () => {
+    const store = new LotStore(file);
+    await store.load();
+    await Promise.all(Array.from({ length: 20 }, (_, i) => store.add({ ...micron, shares: i + 1 })));
+
+    const reopened = new LotStore(file);
+    await reopened.load();
+    expect(reopened.list()).toHaveLength(20);
+  });
+
+  it('leaves no temporary files behind', async () => {
+    const store = new LotStore(file);
+    await store.load();
+    await store.add(micron);
+    await store.add(micron);
+    expect(await readdir(dir)).toEqual(['portfolio.json']);
+  });
+
+  it('keeps memory in step with disk when a save fails', async () => {
+    const failingWrite = async () => {
+      throw new Error('disk full');
+    };
+    const store = new LotStore(file, failingWrite);
+    await store.load();
+
+    await expect(store.add(micron)).rejects.toThrow('disk full');
+    expect(store.list()).toEqual([]);
+  });
+
+  it('moves an unreadable file aside instead of overwriting it', async () => {
+    await writeFile(file, '{ this is not json');
+    const store = new LotStore(file);
+    await store.load();
+
+    expect(store.list()).toEqual([]);
+    const files = await readdir(dir);
+    const aside = files.find((name) => name.startsWith('portfolio.json.unreadable-'));
+    expect(aside).toBeDefined();
+    expect(await readFile(join(dir, aside as string), 'utf8')).toBe('{ this is not json');
+  });
+});
+
+describe('writeFileAtomic', () => {
+  it('replaces the contents of an existing file', async () => {
+    await writeFile(file, 'old');
+    await writeFileAtomic(file, 'new');
+    expect(await readFile(file, 'utf8')).toBe('new');
+  });
+
+  it('cleans up the temporary file when the final rename fails', async () => {
+    // Renaming a file over a folder fails, which stands in for a failed save.
+    const target = join(dir, 'folder');
+    await mkdir(target);
+    await expect(writeFileAtomic(target, 'data')).rejects.toThrow();
+    expect(await readdir(dir)).toEqual(['folder']);
+  });
+});
