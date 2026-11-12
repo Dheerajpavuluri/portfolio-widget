@@ -6,6 +6,8 @@
   --border: #e3e3e0;
   --accent: #2f5bd3;
   --danger: #c0392b;
+  --up: #1e7d45;
+  --down: #c0392b;
   --radius: 10px;
 
   color-scheme: light dark;
@@ -25,6 +27,8 @@
     --border: #2f2f33;
     --accent: #7c9cf5;
     --danger: #ef7b6e;
+    --up: #5cc98a;
+    --down: #ef7b6e;
   }
 }
 
@@ -126,6 +130,10 @@ input:focus {
 }
 
 .app-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -169,13 +177,15 @@ input:focus {
 
 .card-header {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: 12px;
 }
 
 .card-stats {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(4, auto);
+  justify-content: space-between;
   gap: 8px;
   margin: 8px 0;
 }
@@ -211,6 +221,13 @@ input:focus {
 .lot-main {
   display: flex;
   flex-direction: column;
+  flex: 1;
+}
+
+.lot-pnl {
+  text-align: right;
+  margin-right: 8px;
+  font-size: 13px;
 }
 
 .field-row {
@@ -248,8 +265,82 @@ input:focus {
 
 .app-footer {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 2px;
   padding: 10px 14px;
   border-top: 1px solid var(--border);
-  color: var(--muted);
+  background: var(--surface);
+  /* Stays in view while the cards scroll. */
+  position: sticky;
+  bottom: 0;
+}
+
+.footer-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.price {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+}
+
+.price-now {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.change.up {
+  color: var(--up);
+}
+
+.change.down {
+  color: var(--down);
+}
+
+.status {
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.status-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.market::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: 1px;
+}
+
+.market.open::before {
+  background: var(--up);
+}
+
+.market.closed::before {
+  background: var(--muted);
+}
+
+.status-error {
+  margin: 4px 0 0;
+  color: var(--danger);
+}
+
+.notice {
+  margin: 10px 14px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  font-size: 13px;
 }

@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
-import { buildPositions } from '../shared/pnl';
-import type { Lot, LotInput } from '../shared/types';
+import { buildPositions, summarizePortfolio, summarizePosition } from '../shared/pnl';
+import type { Lot, LotInput, QuoteSnapshot } from '../shared/types';
 import { formatMoney } from './format';
 import { LotForm } from './LotForm';
-import { PositionCard } from './PositionCard';
+import { Change, PositionCard } from './PositionCard';
+import { StatusBar } from './StatusBar';
 
 // What the form panel is doing: closed, adding a new lot, or editing one.
 type FormState = { mode: 'closed' } | { mode: 'add' } | { mode: 'edit'; lot: Lot };
 
 export function App() {
   const [lots, setLots] = useState<Lot[] | null>(null);
+  const [snapshot, setSnapshot] = useState<QuoteSnapshot | null>(null);
   const [form, setForm] = useState<FormState>({ mode: 'closed' });
   const [error, setError] = useState<string | null>(null);
 
@@ -17,8 +19,33 @@ export function App() {
     window.portfolio.listLots().then(setLots, (e: unknown) => setError(messageOf(e)));
   }, []);
 
+  useEffect(() => {
+    // Listen first, then ask for the current prices, so an update that lands in between is not missed.
+    const stop = window.portfolio.onQuotes(setSnapshot);
+    void window.portfolio.getQuotes().then(setSnapshot);
+    return stop;
+  }, []);
+
   const positions = useMemo(() => buildPositions(lots ?? []), [lots]);
-  const totalCost = positions.reduce((total, p) => total + p.costBasis, 0);
+
+  // P&L for every position that has a price. Positions without one show cost only.
+  const results = useMemo(
+    () =>
+      positions.flatMap((position) => {
+        const quote = snapshot?.quotes[position.ticker];
+        return quote?.status === 'ok' ? [summarizePosition(position, quote.quote)] : [];
+      }),
+    [positions, snapshot],
+  );
+  const total = summarizePortfolio(results);
+  const unpriced = positions.filter((p) => !results.some((r) => r.position.ticker === p.ticker));
+
+  // Only say "waiting" while a refresh could still bring a price.
+  const noQuoteText = snapshot?.missingKey
+    ? 'No price: no API key'
+    : snapshot?.error
+      ? 'No price yet'
+      : 'Waiting for price...';
 
   // Every change returns the full, saved list from the main process,
   // so the screen always matches what is on disk.
@@ -43,6 +70,8 @@ export function App() {
         <h1>Portfolio</h1>
         {form.mode === 'closed' && <button onClick={() => setForm({ mode: 'add' })}>Add lot</button>}
       </header>
+
+      <StatusBar snapshot={snapshot} />
 
       {error && (
         <p className="error-banner" role="alert">
@@ -69,6 +98,9 @@ export function App() {
           <PositionCard
             key={position.ticker}
             position={position}
+            quote={snapshot?.quotes[position.ticker]}
+            noQuoteText={noQuoteText}
+            result={results.find((r) => r.position.ticker === position.ticker) ?? null}
             onEdit={(lot) => setForm({ mode: 'edit', lot })}
             onDelete={(lot) => run(() => window.portfolio.deleteLot(lot.id))}
           />
@@ -77,10 +109,31 @@ export function App() {
 
       {positions.length > 0 && (
         <footer className="app-footer">
-          <span>
-            {positions.length} {positions.length === 1 ? 'position' : 'positions'}
-          </span>
-          <span>Cost basis {formatMoney(totalCost)}</span>
+          {results.length > 0 ? (
+            <>
+              <div className="footer-row">
+                <span>Total P&amp;L</span>
+                <Change value={total.pnl} percent={total.pnlPct} />
+              </div>
+              <div className="footer-row muted">
+                <span>Today</span>
+                <Change value={total.dayChange} percent={total.dayChangePct} />
+              </div>
+              <div className="footer-row muted small">
+                <span>
+                  Value {formatMoney(total.marketValue)} · Cost {formatMoney(total.costBasis)}
+                </span>
+                {unpriced.length > 0 && <span>Excludes {unpriced.map((p) => p.ticker).join(', ')}</span>}
+              </div>
+            </>
+          ) : (
+            <div className="footer-row">
+              <span>
+                {positions.length} {positions.length === 1 ? 'position' : 'positions'}
+              </span>
+              <span>Cost basis {formatMoney(positions.reduce((sum, p) => sum + p.costBasis, 0))}</span>
+            </div>
+          )}
         </footer>
       )}
     </div>
