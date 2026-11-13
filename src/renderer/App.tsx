@@ -147,7 +147,12 @@ export function App() {
         <div className="header-actions">
           <div className="toggle" role="group" aria-label="View">
             {VIEWS.map(({ id, label }) => (
-              <button key={id} className={view === id ? 'active' : ''} aria-pressed={view === id} onClick={() => chooseView(id)}>
+              <button
+                key={id}
+                className={view === id ? 'active' : ''}
+                aria-pressed={view === id}
+                onClick={() => chooseView(id)}
+              >
                 {label}
               </button>
             ))}

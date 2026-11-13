@@ -1,6 +1,6 @@
 import type { PositionResult } from '../shared/pnl';
 import { allocation, extremes, type AllocationRow } from '../shared/summary';
-import { formatMoney, formatSignedPercent } from './format';
+import { direction, formatMoney, formatSignedPercent } from './format';
 import { Change } from './PositionCard';
 
 interface Props {
@@ -83,6 +83,5 @@ function Mover({ label, best, worst, by }: MoverProps) {
 }
 
 function PercentChange({ value }: { value: number }) {
-  const d = Math.abs(value) < 0.005 ? 'flat' : value > 0 ? 'up' : 'down';
-  return <span className={`change ${d}`}>{formatSignedPercent(value)}</span>;
+  return <span className={`change ${direction(value)}`}>{formatSignedPercent(value)}</span>;
 }

@@ -46,7 +46,7 @@ export function formatQuoteTime(iso: string, now: Date = new Date()): string {
 
 /** "up", "down" or "flat", used for the arrow and the color. */
 export function direction(value: number): 'up' | 'down' | 'flat' {
-  // Below half a cent the change rounds to $0.00, so it should not look like a move.
+  // Below 0.005 the value rounds to 0.00 on screen (dollars or percent), so it should not look like a move.
   if (Math.abs(value) < 0.005) return 'flat';
   return value > 0 ? 'up' : 'down';
 }

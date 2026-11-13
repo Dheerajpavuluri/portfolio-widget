@@ -167,8 +167,8 @@ export function Change({ value, percent }: { value: number; percent?: number }) 
   );
 }
 
-function Arrow({ value }: { value: number }) {
+/** Up, down or flat as a text arrow, so direction never depends on color alone. */
+export function Arrow({ value }: { value: number }) {
   const d = direction(value);
-  // Text arrows rather than color alone, so up and down read the same for everyone.
   return <span aria-label={d}>{d === 'up' ? '▲' : d === 'down' ? '▼' : '–'}</span>;
 }

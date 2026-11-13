@@ -2,6 +2,7 @@ import { marketDate } from '../shared/pnl';
 import { BENCHMARKS, describeDay, quoteChangePct } from '../shared/summary';
 import type { QuoteSnapshot } from '../shared/types';
 import { direction, formatSignedPercent } from './format';
+import { Arrow } from './PositionCard';
 
 interface Props {
   snapshot: QuoteSnapshot | null;
@@ -43,7 +44,6 @@ export function MarketStrip({ snapshot, portfolioPct }: Props) {
 }
 
 function Cell({ label, detail, pct }: { label: string; detail: string; pct: number | null }) {
-  const d = pct === null ? 'flat' : direction(pct);
   return (
     <div className="strip-cell">
       <span className="small">
@@ -52,8 +52,8 @@ function Cell({ label, detail, pct }: { label: string; detail: string; pct: numb
       {pct === null ? (
         <span className="muted">-</span>
       ) : (
-        <span className={`change ${d}`}>
-          {d === 'up' ? '▲' : d === 'down' ? '▼' : '–'} {formatSignedPercent(pct)}
+        <span className={`change ${direction(pct)}`}>
+          <Arrow value={pct} /> {formatSignedPercent(pct)}
         </span>
       )}
     </div>
