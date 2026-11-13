@@ -1,18 +1,24 @@
 :root {
-  --bg: #f6f6f4;
-  --surface: #ffffff;
-  --text: #1c1c1e;
-  --muted: #6e6e73;
-  --border: #e3e3e0;
-  --accent: #2f5bd3;
+  /*
+   * Each color is written once as light-dark(light, dark). Which side is used
+   * follows color-scheme: the system setting until I pick a theme with the
+   * bulb button, then my pick (data-theme on <html>).
+   */
+  color-scheme: light dark;
+
+  --bg: light-dark(#f6f6f4, #161618);
+  --surface: light-dark(#ffffff, #202023);
+  --text: light-dark(#1c1c1e, #ececee);
+  --muted: light-dark(#6e6e73, #9a9aa0);
+  --border: light-dark(#e3e3e0, #2f2f33);
+  --accent: light-dark(#2f5bd3, #7c9cf5);
   /* Text on accent-colored buttons. */
-  --on-accent: #ffffff;
-  --danger: #c0392b;
-  --up: #1e7d45;
-  --down: #c0392b;
+  --on-accent: light-dark(#ffffff, #0e1424);
+  --danger: light-dark(#c0392b, #ef7b6e);
+  --up: light-dark(#1e7d45, #5cc98a);
+  --down: light-dark(#c0392b, #ef7b6e);
   --radius: 10px;
 
-  color-scheme: light dark;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   font-size: 14px;
   line-height: 1.4;
@@ -20,42 +26,12 @@
   font-variant-numeric: tabular-nums;
 }
 
-/*
- * Dark colors apply when I pick dark with the bulb button, or when I have not
- * picked and the system is in dark mode. data-theme on <html> holds my pick.
- */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    --bg: #161618;
-    --surface: #202023;
-    --text: #ececee;
-    --muted: #9a9aa0;
-    --border: #2f2f33;
-    --accent: #7c9cf5;
-    --on-accent: #0e1424;
-    --danger: #ef7b6e;
-    --up: #5cc98a;
-    --down: #ef7b6e;
-    color-scheme: dark;
-  }
+:root[data-theme='light'] {
+  color-scheme: light;
 }
 
 :root[data-theme='dark'] {
-  --bg: #161618;
-  --surface: #202023;
-  --text: #ececee;
-  --muted: #9a9aa0;
-  --border: #2f2f33;
-  --accent: #7c9cf5;
-  --on-accent: #0e1424;
-  --danger: #ef7b6e;
-  --up: #5cc98a;
-  --down: #ef7b6e;
   color-scheme: dark;
-}
-
-:root[data-theme='light'] {
-  color-scheme: light;
 }
 
 * {
