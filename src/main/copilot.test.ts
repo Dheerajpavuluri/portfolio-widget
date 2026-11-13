@@ -128,7 +128,7 @@ describe('Copilot', () => {
 
   it('uses Ollama unless an Anthropic key is set', () => {
     expect(chooseModel({ anthropicKey: null, anthropicModel: null, ollamaModel: null }).label).toBe(
-      'llama3.2 via Ollama on this Mac',
+      'llama3.2 via Ollama on this computer',
     );
     const claude = chooseModel({ anthropicKey: 'sk-test', anthropicModel: null, ollamaModel: 'llama3.2' });
     expect(claude.where).toBe('cloud');

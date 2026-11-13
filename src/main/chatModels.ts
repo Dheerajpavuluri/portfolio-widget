@@ -1,10 +1,10 @@
 /**
- * The one interface the copilot talks to. Ollama (on this Mac) and Claude
+ * The one interface the copilot talks to. Ollama (on this computer) and Claude
  * (Anthropic's API) both implement it, so the rest of the app does not care
  * which one is answering.
  */
 export interface ChatModel {
-  /** Shown in the window, e.g. "llama3.2 via Ollama on this Mac". */
+  /** Shown in the window, e.g. "llama3.2 via Ollama on this computer". */
   label: string;
   /** Whether my data leaves the machine when I ask. */
   where: 'local' | 'cloud';
@@ -23,7 +23,7 @@ const OLLAMA_URL = 'http://127.0.0.1:11434';
 
 export function createOllama(model: string, fetchFn: typeof fetch = fetch): ChatModel {
   return {
-    label: `${model} via Ollama on this Mac`,
+    label: `${model} via Ollama on this computer`,
     where: 'local',
     async ask(system, question) {
       let response: Response;
@@ -46,12 +46,12 @@ export function createOllama(model: string, fetchFn: typeof fetch = fetch): Chat
         });
       } catch {
         throw new ModelUnavailable(
-          `Ollama is not running on this Mac. Install it from ollama.com, then run "ollama pull ${model}" in Terminal.`,
+          `Ollama is not running on this computer. Install it from ollama.com, then run "ollama pull ${model}" in a terminal.`,
         );
       }
 
       if (response.status === 404) {
-        throw new ModelUnavailable(`Ollama does not have the model ${model} yet. Run "ollama pull ${model}" in Terminal.`);
+        throw new ModelUnavailable(`Ollama does not have the model ${model} yet. Run "ollama pull ${model}" in a terminal.`);
       }
       if (!response.ok) throw new Error(`Ollama returned an error (${response.status}).`);
 

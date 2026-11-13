@@ -35,7 +35,7 @@ describe('createOllama', () => {
 
   it('explains how to fix it when Ollama is not running or the model is missing', async () => {
     await expect(createOllama('llama3.2', unreachable).ask('s', 'q')).rejects.toThrow(
-      'Ollama is not running on this Mac. Install it from ollama.com, then run "ollama pull llama3.2" in Terminal.',
+      'Ollama is not running on this computer. Install it from ollama.com, then run "ollama pull llama3.2" in a terminal.',
     );
     const missing = fakeFetch(404, { error: 'model "llama3.2" not found, try pulling it first' });
     await expect(createOllama('llama3.2', missing.fn).ask('s', 'q')).rejects.toBeInstanceOf(ModelUnavailable);

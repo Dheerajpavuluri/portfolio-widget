@@ -92,7 +92,7 @@ export function AskView({ snapshot, tickers }: Props) {
           <p className="muted small model-line">
             Model: {info.label}.{' '}
             {info.where === 'local'
-              ? 'Everything stays on this Mac.'
+              ? 'Everything stays on this computer.'
               : 'Your question and the data under "What was sent" go to Anthropic when you ask.'}
           </p>
         )}
