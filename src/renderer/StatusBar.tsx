@@ -2,14 +2,14 @@ import type { MarketStatus, QuoteSnapshot } from '../shared/types';
 import { formatQuoteTime } from './format';
 
 /** One line under the header saying whether the market is open and how fresh the prices are. */
-export function StatusBar({ snapshot }: { snapshot: QuoteSnapshot | null }) {
+export function StatusBar({ snapshot, keyFile }: { snapshot: QuoteSnapshot | null; keyFile: string | null }) {
   if (!snapshot) return null;
 
   if (snapshot.missingKey) {
     return (
       <p className="notice">
-        No Finnhub API key found. Add <code>FINNHUB_API_KEY=your_key</code> to a <code>.env</code> file in the project
-        folder, then restart the app.
+        No Finnhub API key found. Add a line <code>FINNHUB_API_KEY=your_key</code> to{' '}
+        <code>{keyFile ?? '.env'}</code>, then restart the app.
       </p>
     );
   }

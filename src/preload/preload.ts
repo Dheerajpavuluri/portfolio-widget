@@ -20,6 +20,8 @@ const api: PortfolioApi = {
   copilotInfo: () => invoke('copilot:info'),
   ask: (question: string) => invoke('copilot:ask', question),
   getDigest: () => invoke('digest:get'),
+  appInfo: () => invoke('app:info'),
+  setAlwaysOnTop: (on: boolean) => invoke('window:always-on-top', on),
   onQuotes: (listener) => {
     const channel: IpcEvent = 'quotes:updated';
     // Only the snapshot is passed on. The IPC event object would give the page

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Notification } from 'electron';
+import { app, BrowserWindow, Notification, screen } from 'electron';
 import { join } from 'node:path';
 import { BENCHMARKS } from '../shared/summary.js';
 import type { IpcEvent } from '../shared/types.js';
@@ -11,9 +11,15 @@ import { portfolioFacts } from './copilotContext.js';
 import { buildDigest } from './digest.js';
 import { PortfolioStore } from './store.js';
 import { QuoteService } from './quoteService.js';
+import { loadWindowState, saveWindowState, saveWindowStateNow, visibleBounds, type WindowState } from './windowState.js';
 
 // Set by scripts/dev.mjs. When it is missing we load the built files from disk.
 const devServerUrl = process.env.VITE_DEV_SERVER_URL;
+
+// One data folder for both `npm run dev` and the packaged app. By default
+// Electron names it after the app, and the packaged app is called "Portfolio
+// Widget", which would start it with an empty, separate folder.
+app.setPath('userData', join(app.getPath('appData'), 'portfolio-widget'));
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -21,10 +27,16 @@ function isTrustedSender(url: string): boolean {
   return devServerUrl ? url.startsWith(devServerUrl) : url.startsWith('file://');
 }
 
-function createWindow(): BrowserWindow {
+function createWindow(state: WindowState): BrowserWindow {
+  const bounds = visibleBounds(
+    state.bounds,
+    screen.getAllDisplays().map((display) => display.workArea),
+  );
   const window = new BrowserWindow({
     width: 440,
     height: 720,
+    ...bounds,
+    alwaysOnTop: state.alwaysOnTop,
     minWidth: 400,
     minHeight: 420,
     title: 'Portfolio',
@@ -58,9 +70,10 @@ async function start(): Promise<void> {
   const store = new PortfolioStore(join(userData, 'portfolio.json'));
   await store.load();
 
-  // The key is read here and stays in the main process. The project folder's
-  // .env is checked first, which is where it lives while developing.
-  const envFiles = [join(app.getAppPath(), '.env'), join(userData, '.env')];
+  // Keys are read here and stay in the main process. While developing they
+  // live in the project folder's .env; the packaged app cannot see the project
+  // folder, so it reads the .env in the data folder.
+  const envFiles = app.isPackaged ? [join(userData, '.env')] : [join(app.getAppPath(), '.env'), join(userData, '.env')];
   const apiKey = findSetting('FINNHUB_API_KEY', envFiles);
   const finnhub = apiKey ? createFinnhubClient(apiKey) : null;
 
@@ -95,6 +108,9 @@ async function start(): Promise<void> {
     facts,
   );
 
+  const windowFile = join(userData, 'window.json');
+  const windowState = await loadWindowState(windowFile);
+
   registerIpcHandlers({
     store,
     quotes,
@@ -105,8 +121,22 @@ async function start(): Promise<void> {
       void alerts.onQuotes(quotes.current());
       void alerts.checkEvents();
     },
+    appInfo: () => ({ keyFile: envFiles[0], alwaysOnTop: windowState.alwaysOnTop }),
+    setAlwaysOnTop: (on) => {
+      windowState.alwaysOnTop = on;
+      mainWindow?.setAlwaysOnTop(on);
+      void saveWindowState(windowFile, windowState);
+      return on;
+    },
   });
-  mainWindow = createWindow();
+
+  mainWindow = createWindow(windowState);
+  // Size and position are saved when the window closes, so it reopens where I left it.
+  mainWindow.on('close', () => {
+    if (!mainWindow) return;
+    windowState.bounds = mainWindow.getNormalBounds();
+    saveWindowStateNow(windowFile, windowState);
+  });
   mainWindow.on('closed', () => {
     mainWindow = null;
   });

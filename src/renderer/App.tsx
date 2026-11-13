@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { buildPositions, summarizePortfolio, summarizePosition } from '../shared/pnl';
-import { DEFAULT_ALERTS, type AlertSettings, type Lot, type LotInput, type QuoteSnapshot } from '../shared/types';
+import {
+  DEFAULT_ALERTS,
+  type AlertSettings,
+  type AppInfo,
+  type Lot,
+  type LotInput,
+  type QuoteSnapshot,
+} from '../shared/types';
 import { errorMessage, formatMoney } from './format';
 import { AskView } from './AskView';
 import { LotForm } from './LotForm';
@@ -39,6 +46,7 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<View>(savedView);
   const [alerts, setAlerts] = useState<Record<string, AlertSettings>>({});
+  const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
 
   function chooseView(next: View) {
     setView(next);
@@ -52,7 +60,14 @@ export function App() {
   useEffect(() => {
     window.portfolio.listLots().then(setLots, (e: unknown) => setError(errorMessage(e)));
     window.portfolio.getAlerts().then(setAlerts, (e: unknown) => setError(errorMessage(e)));
+    void window.portfolio.appInfo().then(setAppInfo);
   }, []);
+
+  async function toggleOnTop() {
+    if (!appInfo) return;
+    const alwaysOnTop = await window.portfolio.setAlwaysOnTop(!appInfo.alwaysOnTop);
+    setAppInfo({ ...appInfo, alwaysOnTop });
+  }
 
   async function saveAlerts(ticker: string, settings: AlertSettings) {
     try {
@@ -112,7 +127,19 @@ export function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>Portfolio</h1>
+        <div className="title">
+          <h1>Portfolio</h1>
+          {appInfo && (
+            <button
+              className={appInfo.alwaysOnTop ? 'link pin active' : 'link pin'}
+              aria-pressed={appInfo.alwaysOnTop}
+              title="Keep this window above other windows"
+              onClick={() => void toggleOnTop()}
+            >
+              {appInfo.alwaysOnTop ? 'On top' : 'Keep on top'}
+            </button>
+          )}
+        </div>
         <div className="header-actions">
           <div className="toggle" role="group" aria-label="View">
             {VIEWS.map(({ id, label }) => (
@@ -125,7 +152,7 @@ export function App() {
         </div>
       </header>
 
-      <StatusBar snapshot={snapshot} />
+      <StatusBar snapshot={snapshot} keyFile={appInfo?.keyFile ?? null} />
       <MarketStrip snapshot={snapshot} portfolioPct={results.length > 0 ? total.dayChangePct : null} />
 
       {error && (

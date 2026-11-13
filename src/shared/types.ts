@@ -111,6 +111,13 @@ export interface Digest {
   lines: string[];
 }
 
+/** Things about the running app the window needs to show. */
+export interface AppInfo {
+  /** Where the .env file with the API keys belongs, for the "no key" message. */
+  keyFile: string;
+  alwaysOnTop: boolean;
+}
+
 /** Every IPC channel the renderer may call. Main and preload both type-check against this. */
 export type IpcChannel =
   | 'lots:list'
@@ -122,7 +129,9 @@ export type IpcChannel =
   | 'alerts:set'
   | 'copilot:info'
   | 'copilot:ask'
-  | 'digest:get';
+  | 'digest:get'
+  | 'app:info'
+  | 'window:always-on-top';
 
 /** Messages the main process pushes to the renderer without being asked. */
 export type IpcEvent = 'quotes:updated';
@@ -141,6 +150,8 @@ export interface PortfolioApi {
   /** Only the question is sent; the main process adds the position data. */
   ask(question: string): Promise<CopilotAnswer>;
   getDigest(): Promise<Digest>;
+  appInfo(): Promise<AppInfo>;
+  setAlwaysOnTop(on: boolean): Promise<boolean>;
   /** Calls the listener after every price refresh. Returns a function that stops listening. */
   onQuotes(listener: (snapshot: QuoteSnapshot) => void): () => void;
 }

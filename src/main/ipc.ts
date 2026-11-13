@@ -1,5 +1,5 @@
 import { ipcMain, type IpcMainInvokeEvent } from 'electron';
-import type { AlertSettings, Digest, IpcChannel, Lot, LotInput } from '../shared/types.js';
+import type { AlertSettings, AppInfo, Digest, IpcChannel, Lot, LotInput } from '../shared/types.js';
 import { validateAlerts } from '../shared/validateAlerts.js';
 import { validateLot } from '../shared/validateLot.js';
 import { MAX_QUESTION_LENGTH, type Copilot } from './copilot.js';
@@ -14,6 +14,8 @@ interface Handlers {
   isTrustedSender: (url: string) => boolean;
   /** Runs after alert settings change, so a new threshold is checked right away. */
   onAlertsChanged: () => void;
+  appInfo: () => AppInfo;
+  setAlwaysOnTop: (on: boolean) => boolean;
 }
 
 /**
@@ -23,7 +25,7 @@ interface Handlers {
  * here even though the form already validated it.
  */
 export function registerIpcHandlers(handlers: Handlers): void {
-  const { store, quotes, copilot, digest, isTrustedSender, onAlertsChanged } = handlers;
+  const { store, quotes, copilot, digest, isTrustedSender, onAlertsChanged, appInfo, setAlwaysOnTop } = handlers;
   const handle = (channel: IpcChannel, handler: (...args: unknown[]) => unknown) => {
     ipcMain.handle(channel, (event: IpcMainInvokeEvent, ...args: unknown[]) => {
       const url = event.senderFrame?.url ?? '';
@@ -52,6 +54,11 @@ export function registerIpcHandlers(handlers: Handlers): void {
   handle('copilot:info', () => copilot.info());
   handle('copilot:ask', (question) => copilot.ask(checkQuestion(question)));
   handle('digest:get', () => digest());
+  handle('app:info', () => appInfo());
+  handle('window:always-on-top', (on) => {
+    if (typeof on !== 'boolean') throw new Error('Expected true or false');
+    return setAlwaysOnTop(on);
+  });
 }
 
 function checkQuestion(question: unknown): string {
