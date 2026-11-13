@@ -93,6 +93,24 @@ export interface StoredData {
   alerts: Record<string, AlertSettings>;
 }
 
+/** Which model answers questions, and whether my data leaves the machine when I ask. */
+export interface CopilotInfo {
+  label: string;
+  where: 'local' | 'cloud';
+}
+
+export interface CopilotAnswer {
+  answer: string;
+  /** Exactly the data that went to the model with the question, so I can see it. */
+  sent: string;
+}
+
+/** A short summary built on this machine from my own numbers. */
+export interface Digest {
+  title: string;
+  lines: string[];
+}
+
 /** Every IPC channel the renderer may call. Main and preload both type-check against this. */
 export type IpcChannel =
   | 'lots:list'
@@ -101,7 +119,10 @@ export type IpcChannel =
   | 'lots:delete'
   | 'quotes:get'
   | 'alerts:get'
-  | 'alerts:set';
+  | 'alerts:set'
+  | 'copilot:info'
+  | 'copilot:ask'
+  | 'digest:get';
 
 /** Messages the main process pushes to the renderer without being asked. */
 export type IpcEvent = 'quotes:updated';
@@ -116,6 +137,10 @@ export interface PortfolioApi {
   /** Alert settings for every ticker that has some; others use DEFAULT_ALERTS. */
   getAlerts(): Promise<Record<string, AlertSettings>>;
   setAlerts(ticker: string, settings: AlertSettings): Promise<Record<string, AlertSettings>>;
+  copilotInfo(): Promise<CopilotInfo>;
+  /** Only the question is sent; the main process adds the position data. */
+  ask(question: string): Promise<CopilotAnswer>;
+  getDigest(): Promise<Digest>;
   /** Calls the listener after every price refresh. Returns a function that stops listening. */
   onQuotes(listener: (snapshot: QuoteSnapshot) => void): () => void;
 }
