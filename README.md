@@ -1,35 +1,28 @@
 # Portfolio Widget
 
-A small desktop widget that shows my stock positions and how they are doing, without opening my brokerage app. I enter my trades by hand, and the widget tracks each purchase separately and combines them per ticker.
+A small desktop widget that shows my stock positions and how they are doing, without opening my brokerage app. I enter my trades by hand, and the widget tracks each purchase separately, combines them per stock, and shows profit and loss for every purchase, every stock and the whole portfolio.
 
-Built with Electron, React and TypeScript. Everything stays on my machine.
+Built with Electron, React and TypeScript. My data stays on my machine.
 
-## What works so far
+<p align="center"><img src="docs/demo.gif" width="440" alt="Scrolling through the position cards, then switching to the Summary and Ask views"></p>
 
-This is milestone 5 of 6.
+| Cards | Summary | Ask | Alerts |
+| --- | --- | --- | --- |
+| <img src="docs/cards.png" width="200" alt="Position cards with price, day change, lots and P&L"> | <img src="docs/summary.png" width="200" alt="All positions in one table with weights and best and worst performers"> | <img src="docs/ask.png" width="200" alt="Local digest of the day and the question box"> | <img src="docs/alerts.png" width="200" alt="Alert settings for one stock"> |
 
-- Add, edit and delete lots (ticker, shares, buy price per share, buy date), with validation
-- Lots of the same ticker grouped into one card per ticker: price, day change with an up or down arrow, shares, average cost, amount invested, value now, and total P&L
-- For every lot: amount invested, value now, and P&L in dollars and percent
-- A footer with the portfolio's total invested, value now, total P&L and today's change. Positions without a price are left out of all four and listed underneath, so value now minus invested always equals total P&L
-- Prices from Finnhub, refreshed every minute while the market is open, labeled as delayed, with the time of the latest price
-- A clear market-closed state that shows the last price instead of pretending it is live
-- Tickers Finnhub cannot price say so on their card and are left out of the totals, instead of showing $0
-- A market strip at the top: today's move for the S&P 500 and Nasdaq 100 next to my portfolio's, and one sentence comparing them
-- A Summary view with every position in one table: share of the portfolio, value, today's move and total P&L, plus the best and worst performers today and overall
-- Lots saved to a local JSON file, written atomically so a crash cannot corrupt it
-- Alerts I set per stock, shown as desktop notifications: today's move passing a percentage, total P&L reaching a gain target or a loss limit, earnings within a day, and new company news. Nothing else notifies me
-- An Ask view: a digest of the day built from my own numbers, and a box where I ask plain questions like "How am I doing on MU?" or "What moved most today?", answered by a local model through Ollama, or by Claude if I add an Anthropic key
-- Only one copy of the app runs at a time; starting it again brings the open window to the front
+The screenshots use made-up positions and sample prices, not my real portfolio.
 
-### Roadmap
+## What it does
 
-1. Project setup, lot entry, local storage, P&L math and tests (done)
-2. Live quotes and per-ticker cards with P&L (done)
-3. Market strip and combined portfolio view (done)
-4. Threshold alerts (done)
-5. Plain-language Q&A about my positions and a morning digest (done)
-6. Polish, screenshots
+- **Lots.** I add, edit and delete purchases (ticker, shares, buy price per share, date). Fractional shares are fine.
+- **Cards.** One card per stock: price, today's move with an up or down arrow, shares, average cost, amount invested, value now and total P&L. Every purchase shows what I put in, what it is worth now and its own P&L.
+- **Totals.** The footer shows the whole portfolio: invested, value now, total P&L and today's change.
+- **Live prices.** Prices come from Finnhub, refresh every minute while the market is open, and are labeled as delayed with the time of the latest price. When the market is closed, the app says so and shows the last price.
+- **Market strip.** Today's move for the S&P 500 and Nasdaq 100 next to my portfolio's, with one sentence comparing them.
+- **Summary view.** Every stock in one table: share of the portfolio, value, today's move and total P&L, plus the best and worst performers today and overall.
+- **Alerts.** Desktop notifications I set per stock: today's move passing a percentage, total P&L reaching a gain target or a loss limit, earnings within a day, and new company news. Nothing else notifies me.
+- **Ask view.** A short digest of the day, built on my machine from my own numbers. Below it, a box for plain questions like "How am I doing on MU?" or "What moved most today?". A local model answers through Ollama, or Claude if I add an Anthropic key.
+- **Widget.** A compact window that can stay on top of other windows and reopens where I left it. Only one copy runs at a time.
 
 ## Running it
 
@@ -49,7 +42,7 @@ For the Ask view, either install [Ollama](https://ollama.com) and run `ollama pu
 ANTHROPIC_API_KEY=your_anthropic_key
 ```
 
-Optional settings in `.env`: `OLLAMA_MODEL` (default `llama3.2`) and `ANTHROPIC_MODEL` (default `claude-haiku-5-5`).
+Optional settings in `.env`: `OLLAMA_MODEL` (default `llama3.2`) and `ANTHROPIC_MODEL` (default `claude-haiku-5-5`). The digest works without either model.
 
 Then:
 
@@ -60,6 +53,32 @@ npm start        # builds everything and runs the built app
 ```
 
 Changes to `src/main` or `src/preload` need `npm run dev` to be restarted. Closing the window quits the app on every platform, including macOS.
+
+## Building the Mac app
+
+```bash
+npm run dist
+```
+
+This builds the code and packages it with [electron-builder](https://www.electron.build) into `release/`, as a `.dmg` with `Portfolio Widget.app` inside. Drag the app into Applications and open it like any other app. Run this on a Mac; macOS apps cannot be packaged on other systems.
+
+**API keys for the packaged app.** The packaged app cannot see the project folder, so it reads `.env` from its data folder instead. Copy the file there once:
+
+```bash
+cp .env ~/Library/Application\ Support/portfolio-widget/.env
+```
+
+If the key is missing, the app says so and shows the exact path where it looks. The same file can hold the Anthropic key.
+
+**My lots carry over.** The development version and the packaged app use the same data folder, `~/Library/Application Support/portfolio-widget/`, so anything I entered with `npm run dev` shows up in the app, and the other way round.
+
+**First launch.** The app is not signed with an Apple developer certificate, so there is no auto-updater and macOS may warn about it. An app I built on my own Mac usually opens normally. If macOS blocks it, right-click the app and choose Open, or allow it in System Settings, Privacy & Security, Open Anyway. If it says the app "is damaged", that is the same check, and this clears it:
+
+```bash
+xattr -cr "/Applications/Portfolio Widget.app"
+```
+
+The package only contains the built code (`dist/`, `dist-electron/` and `package.json`). React and the other libraries are bundled into the built files, so all packages are dev dependencies and no `node_modules` folder is shipped. Keys, tests and source files are not included.
 
 ## Tests
 
@@ -80,9 +99,9 @@ The tests cover:
 - portfolio weights, best and worst performers, and the sentence that compares my day with the market's (`src/shared/summary.test.ts`)
 - reading keys and settings from `.env` (`src/main/envSettings.test.ts`)
 - alert thresholds: crossing, not repeating, re-arming targets, starting fresh each trading day, earnings timing and news de-duplication (`src/main/alerts.test.ts`), the service that runs them and survives restarts (`src/main/alertService.test.ts`), and alert settings validation (`src/shared/validateAlerts.test.ts`)
-
 - the two model providers, including the messages when Ollama is not running or a key is wrong (`src/main/chatModels.test.ts`)
 - which data goes with a question, the digest, and the copilot that ties them together (`src/main/copilot.test.ts`)
+- restoring the window position only when it is still on a screen (`src/main/windowState.test.ts`)
 
 The tests never call Finnhub, Ollama or Anthropic. They use fake responses shaped like the real ones.
 
@@ -129,7 +148,7 @@ Prices come from Finnhub's free plan, which I treat as about 15 minutes behind. 
 
 **The market strip.** Finnhub's free plan does not include the indexes themselves, so I use the funds that track them: SPY for the S&P 500 and QQQ for the Nasdaq 100. The strip labels them with both names. Their move is (price - previous close) / previous close. "My portfolio" is the same day change the footer shows, measured against the value my positions had at the start of the day. The sentence under the strip compares the two in percentage points, rounded the way they are displayed so the sentence always agrees with the numbers above it. After a weekend or holiday the latest prices are from an earlier session, so the strip says "on Fri" instead of "today".
 
-**The Summary view.** Each position's share is its value divided by the total value of the positions that have a price. Best and worst are picked by percentage, not dollars, so a small position that doubled is not hidden behind a large one that moved a little. My choice between Cards and Summary is remembered in the window's local storage, since it is only a display preference.
+**The Summary view.** Each position's share is its value divided by the total value of the positions that have a price. Best and worst are picked by percentage, not dollars, so a small position that doubled is not hidden behind a large one that moved a little. My choice of view is remembered in the window's local storage, since it is only a display preference.
 
 The free plan's limit is 60 calls a minute. Each refresh uses one status call, one call per ticker, and two for SPY and QQQ, so this works for up to about 55 tickers.
 
@@ -179,11 +198,18 @@ The system prompt tells the model to use only that data, say so when the answer 
 
 ## Storage and privacy
 
-My lots live in one file, `portfolio.json`, in the app's user data folder:
+Everything lives in the app's data folder, the same one for `npm run dev` and the packaged app:
 
 - macOS: `~/Library/Application Support/portfolio-widget/`
 - Windows: `%APPDATA%\portfolio-widget\`
 - Linux: `~/.config/portfolio-widget/`
+
+| File | Holds |
+| --- | --- |
+| `portfolio.json` | my lots and alert settings |
+| `alert-memory.json` | which alerts were already shown, so they are not repeated |
+| `window.json` | window size, position and whether it stays on top |
+| `.env` | API keys, for the packaged app (while developing, the project folder's `.env` is read first) |
 
 Nothing is stored in the project folder. Network traffic is limited to Finnhub requests (quotes, market status, earnings and news), which carry ticker symbols and nothing about my positions, plus questions I ask in the Ask view. Those go to Ollama on my own machine, or to Anthropic only if I have added an Anthropic key.
 
@@ -202,7 +228,7 @@ Keys are read from `.env` (or environment variables of the same names) by the ma
 Electron runs two kinds of process. The main process has full Node.js access. The renderer is the web page I see. I keep the page locked down:
 
 - **Context isolation, sandbox, and no Node.js in the page.** The page cannot reach the file system, environment variables or the API key.
-- **One narrow bridge.** The preload script exposes a few functions on `window.portfolio`: `listLots`, `addLot`, `updateLot`, `deleteLot`, `getQuotes`, `getAlerts`, `setAlerts`, `copilotInfo`, `ask`, `getDigest` and `onQuotes`. Each one but the last sends an IPC message to the main process; `onQuotes` receives the price updates the main process pushes after each refresh. Only the price data is passed to the page, never Electron's IPC event object.
+- **One narrow bridge.** The preload script exposes a small set of functions on `window.portfolio` (see `PortfolioApi` in `src/shared/types.ts`): lots, quotes, alert settings, the copilot, the digest, app info and keep-on-top. Each one but `onQuotes` sends an IPC message to the main process; `onQuotes` receives the price updates the main process pushes after each refresh. Only the price data is passed to the page, never Electron's IPC event object.
 - **The main process checks everything.** It re-validates every lot and alert setting that comes over IPC, even though the form already checked it, and it only answers messages from the app's own page.
 - **The page loads nothing from outside.** The built page has a Content Security Policy that only allows the app's own files. It cannot navigate away or open new windows.
 
@@ -214,4 +240,8 @@ src/
   shared/     types, P&L math, validation and trading hours used by both sides
 scripts/
   dev.mjs     starts Vite and Electron together for development
+  clean.mjs   empties a build folder before rebuilding
+docs/         screenshots and the demo GIF for this README
 ```
+
+The window remembers its size and position in `window.json`. If the saved position is no longer on any screen, for example after unplugging a monitor, it opens in the default spot instead. That save happens synchronously while the app quits, because an asynchronous write can be cut off before it finishes.
