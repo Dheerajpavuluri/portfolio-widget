@@ -2,15 +2,15 @@ import { app, BrowserWindow, Notification, screen } from 'electron';
 import { join } from 'node:path';
 import { BENCHMARKS } from '../shared/summary.js';
 import type { IpcEvent } from '../shared/types.js';
-import { findSetting } from './envSettings.js';
-import { createFinnhubClient } from './finnhub.js';
-import { registerIpcHandlers } from './ipc.js';
 import { AlertService } from './alertService.js';
 import { chooseModel, Copilot } from './copilot.js';
 import { portfolioFacts } from './copilotContext.js';
 import { buildDigest } from './digest.js';
-import { PortfolioStore } from './store.js';
+import { findSetting } from './envSettings.js';
+import { createFinnhubClient } from './finnhub.js';
+import { registerIpcHandlers } from './ipc.js';
 import { QuoteService } from './quoteService.js';
+import { PortfolioStore } from './store.js';
 import { loadWindowState, saveWindowState, saveWindowStateNow, visibleBounds, type WindowState } from './windowState.js';
 
 // Set by scripts/dev.mjs. When it is missing we load the built files from disk.
