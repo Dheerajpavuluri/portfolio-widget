@@ -6,7 +6,7 @@ Built with Electron, React and TypeScript. Everything stays on my machine.
 
 ## What works so far
 
-This is milestone 2 of 6.
+This is milestone 3 of 6.
 
 - Add, edit and delete lots (ticker, shares, buy price per share, buy date), with validation
 - Lots of the same ticker grouped into one card per ticker: price, day change with an up or down arrow, shares, average cost, amount invested, value now, and total P&L
@@ -15,6 +15,8 @@ This is milestone 2 of 6.
 - Prices from Finnhub, refreshed every minute while the market is open, labeled as delayed, with the time of the latest price
 - A clear market-closed state that shows the last price instead of pretending it is live
 - Tickers Finnhub cannot price say so on their card and are left out of the totals, instead of showing $0
+- A market strip at the top: today's move for the S&P 500 and Nasdaq 100 next to my portfolio's, and one sentence comparing them
+- A Summary view with every position in one table: share of the portfolio, value, today's move and total P&L, plus the best and worst performers today and overall
 - Lots saved to a local JSON file, written atomically so a crash cannot corrupt it
 - Only one copy of the app runs at a time; starting it again brings the open window to the front
 
@@ -22,7 +24,7 @@ This is milestone 2 of 6.
 
 1. Project setup, lot entry, local storage, P&L math and tests (done)
 2. Live quotes and per-ticker cards with P&L (done)
-3. Market strip and combined portfolio view
+3. Market strip and combined portfolio view (done)
 4. Threshold alerts
 5. Plain-language Q&A about my positions and a morning digest
 6. Polish, screenshots
@@ -63,6 +65,7 @@ The tests cover:
 - quote parsing, including Finnhub's all-zero answer for unknown tickers, and how HTTP errors are reported (`src/main/finnhub.test.ts`)
 - when prices are refreshed, open versus closed market, new tickers, unavailable tickers and failed refreshes (`src/main/quoteService.test.ts`)
 - regular trading hours across daylight saving time (`src/shared/marketHours.test.ts`)
+- portfolio weights, best and worst performers, and the sentence that compares my day with the market's (`src/shared/summary.test.ts`)
 - finding the API key (`src/main/apiKey.test.ts`)
 
 The tests never call Finnhub. They use fake responses shaped like Finnhub's real ones.
@@ -108,7 +111,11 @@ Prices come from Finnhub's free plan, which I treat as about 15 minutes behind. 
 - **Failures.** If a refresh fails (no internet, rate limit, bad key), the last good prices stay on screen and the status line says what went wrong and how old the prices are.
 - **Fallback.** If Finnhub cannot tell me whether the market is open, I fall back to regular trading hours (9:30 AM to 4:00 PM New York time, weekdays) and the status line says "Market likely open" or "Market likely closed", because that guess does not know about holidays.
 
-The free plan's limit is 60 calls a minute. Each refresh uses one status call plus one call per ticker, so this works for up to about 50 tickers.
+**The market strip.** Finnhub's free plan does not include the indexes themselves, so I use the funds that track them: SPY for the S&P 500 and QQQ for the Nasdaq 100. The strip labels them with both names. Their move is (price - previous close) / previous close. "My portfolio" is the same day change the footer shows, measured against the value my positions had at the start of the day. The sentence under the strip compares the two in percentage points, rounded the way they are displayed so the sentence always agrees with the numbers above it. After a weekend or holiday the latest prices are from an earlier session, so the strip says "on Fri" instead of "today".
+
+**The Summary view.** Each position's share is its value divided by the total value of the positions that have a price. Best and worst are picked by percentage, not dollars, so a small position that doubled is not hidden behind a large one that moved a little. My choice between Cards and Summary is remembered in the window's local storage, since it is only a display preference.
+
+The free plan's limit is 60 calls a minute. Each refresh uses one status call, one call per ticker, and two for SPY and QQQ, so this works for up to about 55 tickers.
 
 ## Storage and privacy
 
