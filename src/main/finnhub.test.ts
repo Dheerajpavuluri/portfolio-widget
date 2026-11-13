@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createFinnhubClient, FinnhubError, parseMarketStatus, parseQuote } from './finnhub.js';
+import { createFinnhubClient, FinnhubError, parseEarnings, parseMarketStatus, parseNews, parseQuote } from './finnhub.js';
 
 describe('parseQuote', () => {
   it('reads price, previous close and time from a Finnhub quote', () => {
@@ -83,5 +83,45 @@ describe('createFinnhubClient', () => {
       throw new TypeError('fetch failed');
     }) as typeof fetch;
     await expect(createFinnhubClient('k', failing).fetchMarketStatus()).rejects.toMatchObject({ kind: 'network' });
+  });
+});
+
+describe('parseEarnings', () => {
+  it('reads dates and timing from the earnings calendar', () => {
+    const json = {
+      earningsCalendar: [
+        { date: '2026-12-17', epsActual: null, epsEstimate: 4.1, hour: 'amc', quarter: 1, symbol: 'MU', year: 2027 },
+        { date: '2027-03-25', hour: '', symbol: 'MU' },
+      ],
+    };
+    expect(parseEarnings(json, 'MU')).toEqual([
+      { ticker: 'MU', date: '2026-12-17', hour: 'amc' },
+      { ticker: 'MU', date: '2027-03-25', hour: null },
+    ]);
+  });
+
+  it('skips entries for other symbols and anything malformed', () => {
+    const json = { earningsCalendar: [{ date: '2026-12-17', symbol: 'AAPL' }, { date: 'soon', symbol: 'MU' }, null] };
+    expect(parseEarnings(json, 'MU')).toEqual([]);
+    expect(parseEarnings({}, 'MU')).toEqual([]);
+    expect(parseEarnings(null, 'MU')).toEqual([]);
+  });
+});
+
+describe('parseNews', () => {
+  it('reads headlines, newest first', () => {
+    const json = [
+      { category: 'company', datetime: 1794500000, headline: 'Older story', id: 1, source: 'Reuters', url: 'x' },
+      { category: 'company', datetime: 1794510000, headline: ' Newer story ', id: 2, source: 'CNBC', url: 'y' },
+    ];
+    expect(parseNews(json, 'MU')).toEqual([
+      { ticker: 'MU', id: 2, headline: 'Newer story', source: 'CNBC' },
+      { ticker: 'MU', id: 1, headline: 'Older story', source: 'Reuters' },
+    ]);
+  });
+
+  it('skips items without an id or headline', () => {
+    expect(parseNews([{ id: 1 }, { headline: 'no id' }, { id: 2, headline: '  ' }], 'MU')).toEqual([]);
+    expect(parseNews({ error: 'x' }, 'MU')).toEqual([]);
   });
 });

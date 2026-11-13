@@ -1,4 +1,5 @@
 import type { MarketStatus, Quote } from '../shared/types.js';
+import type { EarningsEvent, NewsItem } from './alerts.js';
 
 const BASE_URL = 'https://finnhub.io/api/v1';
 
@@ -24,7 +25,13 @@ export interface QuoteSource {
   fetchMarketStatus(): Promise<MarketStatus>;
 }
 
-export function createFinnhubClient(apiKey: string, fetchFn: typeof fetch = fetch): QuoteSource {
+/** What the alert service needs: upcoming earnings and recent headlines. Dates are YYYY-MM-DD. */
+export interface EventSource {
+  fetchEarnings(ticker: string, from: string, to: string): Promise<EarningsEvent[]>;
+  fetchNews(ticker: string, from: string, to: string): Promise<NewsItem[]>;
+}
+
+export function createFinnhubClient(apiKey: string, fetchFn: typeof fetch = fetch): QuoteSource & EventSource {
   async function get(path: string, params: Record<string, string>): Promise<unknown> {
     const url = `${BASE_URL}${path}?${new URLSearchParams(params)}`;
 
@@ -60,6 +67,12 @@ export function createFinnhubClient(apiKey: string, fetchFn: typeof fetch = fetc
       const status = parseMarketStatus(await get('/stock/market-status', { exchange: 'US' }));
       if (!status) throw new FinnhubError('bad-response', 'Finnhub sent a market status that could not be read.');
       return status;
+    },
+    async fetchEarnings(ticker, from, to) {
+      return parseEarnings(await get('/calendar/earnings', { symbol: ticker, from, to }), ticker);
+    },
+    async fetchNews(ticker, from, to) {
+      return parseNews(await get('/company-news', { symbol: ticker, from, to }), ticker);
     },
   };
 }
@@ -97,4 +110,39 @@ export function parseMarketStatus(json: unknown): MarketStatus | null {
     holiday: typeof holiday === 'string' && holiday.length > 0 ? holiday : null,
     source: 'finnhub',
   };
+}
+
+/** Reads /calendar/earnings: { earningsCalendar: [{ symbol, date, hour, ... }] }. Skips entries it cannot read. */
+export function parseEarnings(json: unknown, ticker: string): EarningsEvent[] {
+  const list = (json as { earningsCalendar?: unknown } | null)?.earningsCalendar;
+  if (!Array.isArray(list)) return [];
+
+  return list.flatMap((entry: Record<string, unknown>) => {
+    if (typeof entry?.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(entry.date)) return [];
+    // The calendar is asked for one symbol, but check anyway so a stray entry cannot alert the wrong ticker.
+    if (typeof entry.symbol === 'string' && entry.symbol.toUpperCase() !== ticker) return [];
+    const hour = entry.hour === 'bmo' || entry.hour === 'amc' || entry.hour === 'dmh' ? entry.hour : null;
+    return [{ ticker, date: entry.date, hour }];
+  });
+}
+
+/** Reads /company-news: [{ id, headline, source, datetime, ... }], newest first. */
+export function parseNews(json: unknown, ticker: string): NewsItem[] {
+  if (!Array.isArray(json)) return [];
+
+  return json
+    .flatMap((entry: Record<string, unknown>) => {
+      if (typeof entry?.id !== 'number' || typeof entry.headline !== 'string' || entry.headline.trim() === '') return [];
+      return [
+        {
+          ticker,
+          id: entry.id,
+          headline: entry.headline.trim(),
+          source: typeof entry.source === 'string' ? entry.source : 'unknown source',
+          datetime: typeof entry.datetime === 'number' ? entry.datetime : 0,
+        },
+      ];
+    })
+    .sort((a, b) => b.datetime - a.datetime)
+    .map(({ datetime: _datetime, ...item }) => item);
 }
