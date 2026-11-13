@@ -64,6 +64,11 @@ export class AlertService {
     this.timer = null;
   }
 
+  /** Earnings found on the last checks, for the digest. Only covers tickers with earnings alerts on. */
+  upcomingEarnings(): EarningsEvent[] {
+    return [...this.earningsCache.values()].flatMap((entry) => entry.events);
+  }
+
   /** Called with every new quote snapshot. */
   onQuotes(snapshot: QuoteSnapshot): Promise<void> {
     const settings = this.options.store.alerts();

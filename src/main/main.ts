@@ -2,10 +2,13 @@ import { app, BrowserWindow, Notification } from 'electron';
 import { join } from 'node:path';
 import { BENCHMARKS } from '../shared/summary.js';
 import type { IpcEvent } from '../shared/types.js';
-import { findApiKey } from './apiKey.js';
+import { findSetting } from './envSettings.js';
 import { createFinnhubClient } from './finnhub.js';
 import { registerIpcHandlers } from './ipc.js';
 import { AlertService } from './alertService.js';
+import { chooseModel, Copilot } from './copilot.js';
+import { portfolioFacts } from './copilotContext.js';
+import { buildDigest } from './digest.js';
 import { PortfolioStore } from './store.js';
 import { QuoteService } from './quoteService.js';
 
@@ -57,7 +60,8 @@ async function start(): Promise<void> {
 
   // The key is read here and stays in the main process. The project folder's
   // .env is checked first, which is where it lives while developing.
-  const apiKey = findApiKey([join(app.getAppPath(), '.env'), join(userData, '.env')]);
+  const envFiles = [join(app.getAppPath(), '.env'), join(userData, '.env')];
+  const apiKey = findSetting('FINNHUB_API_KEY', envFiles);
   const finnhub = apiKey ? createFinnhubClient(apiKey) : null;
 
   const alerts = new AlertService({
@@ -81,9 +85,21 @@ async function start(): Promise<void> {
     },
   });
 
+  const facts = () => portfolioFacts(store.list(), quotes.current());
+  const copilot = new Copilot(
+    chooseModel({
+      anthropicKey: findSetting('ANTHROPIC_API_KEY', envFiles),
+      anthropicModel: findSetting('ANTHROPIC_MODEL', envFiles),
+      ollamaModel: findSetting('OLLAMA_MODEL', envFiles),
+    }),
+    facts,
+  );
+
   registerIpcHandlers({
     store,
     quotes,
+    copilot,
+    digest: () => buildDigest(facts(), alerts.upcomingEarnings(), new Date()),
     isTrustedSender,
     onAlertsChanged: () => {
       void alerts.onQuotes(quotes.current());

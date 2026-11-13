@@ -50,3 +50,12 @@ export function direction(value: number): 'up' | 'down' | 'flat' {
   if (Math.abs(value) < 0.005) return 'flat';
   return value > 0 ? 'up' : 'down';
 }
+
+/**
+ * The readable part of an error from the main process. Electron wraps them as
+ * "Error invoking remote method 'x': SomeError: message", and only the message is for me.
+ */
+export function errorMessage(error: unknown): string {
+  const text = error instanceof Error ? error.message : String(error);
+  return text.replace(/^Error invoking remote method '[^']+': (\w+: )?/, '');
+}

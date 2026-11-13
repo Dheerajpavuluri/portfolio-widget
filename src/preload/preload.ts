@@ -17,6 +17,9 @@ const api: PortfolioApi = {
   getQuotes: () => invoke('quotes:get'),
   getAlerts: () => invoke('alerts:get'),
   setAlerts: (ticker: string, settings: AlertSettings) => invoke('alerts:set', ticker, settings),
+  copilotInfo: () => invoke('copilot:info'),
+  ask: (question: string) => invoke('copilot:ask', question),
+  getDigest: () => invoke('digest:get'),
   onQuotes: (listener) => {
     const channel: IpcEvent = 'quotes:updated';
     // Only the snapshot is passed on. The IPC event object would give the page

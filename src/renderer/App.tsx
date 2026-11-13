@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { buildPositions, summarizePortfolio, summarizePosition } from '../shared/pnl';
 import { DEFAULT_ALERTS, type AlertSettings, type Lot, type LotInput, type QuoteSnapshot } from '../shared/types';
-import { formatMoney } from './format';
+import { errorMessage, formatMoney } from './format';
+import { AskView } from './AskView';
 import { LotForm } from './LotForm';
 import { MarketStrip } from './MarketStrip';
 import { Change, PositionCard } from './PositionCard';
@@ -11,18 +12,25 @@ import { SummaryView } from './SummaryView';
 // What the form panel is doing: closed, adding a new lot, or editing one.
 type FormState = { mode: 'closed' } | { mode: 'add' } | { mode: 'edit'; lot: Lot };
 
-type View = 'cards' | 'summary';
+type View = 'cards' | 'summary' | 'ask';
 const VIEW_KEY = 'portfolio-widget:view';
 
 // The chosen view is only a display preference, so it lives in the window's own
 // storage. Reading it can fail in some contexts, and then the app shows cards.
 function savedView(): View {
   try {
-    return localStorage.getItem(VIEW_KEY) === 'summary' ? 'summary' : 'cards';
+    const saved = localStorage.getItem(VIEW_KEY);
+    return saved === 'summary' || saved === 'ask' ? saved : 'cards';
   } catch {
     return 'cards';
   }
 }
+
+const VIEWS: { id: View; label: string }[] = [
+  { id: 'cards', label: 'Cards' },
+  { id: 'summary', label: 'Summary' },
+  { id: 'ask', label: 'Ask' },
+];
 
 export function App() {
   const [lots, setLots] = useState<Lot[] | null>(null);
@@ -42,8 +50,8 @@ export function App() {
   }
 
   useEffect(() => {
-    window.portfolio.listLots().then(setLots, (e: unknown) => setError(messageOf(e)));
-    window.portfolio.getAlerts().then(setAlerts, (e: unknown) => setError(messageOf(e)));
+    window.portfolio.listLots().then(setLots, (e: unknown) => setError(errorMessage(e)));
+    window.portfolio.getAlerts().then(setAlerts, (e: unknown) => setError(errorMessage(e)));
   }, []);
 
   async function saveAlerts(ticker: string, settings: AlertSettings) {
@@ -51,7 +59,7 @@ export function App() {
       setAlerts(await window.portfolio.setAlerts(ticker, settings));
       setError(null);
     } catch (e) {
-      setError(messageOf(e));
+      setError(errorMessage(e));
       throw e;
     }
   }
@@ -92,7 +100,7 @@ export function App() {
       setError(null);
       setForm({ mode: 'closed' });
     } catch (e) {
-      setError(messageOf(e));
+      setError(errorMessage(e));
     }
   }
 
@@ -107,20 +115,11 @@ export function App() {
         <h1>Portfolio</h1>
         <div className="header-actions">
           <div className="toggle" role="group" aria-label="View">
-            <button
-              className={view === 'cards' ? 'active' : ''}
-              aria-pressed={view === 'cards'}
-              onClick={() => chooseView('cards')}
-            >
-              Cards
-            </button>
-            <button
-              className={view === 'summary' ? 'active' : ''}
-              aria-pressed={view === 'summary'}
-              onClick={() => chooseView('summary')}
-            >
-              Summary
-            </button>
+            {VIEWS.map(({ id, label }) => (
+              <button key={id} className={view === id ? 'active' : ''} aria-pressed={view === id} onClick={() => chooseView(id)}>
+                {label}
+              </button>
+            ))}
           </div>
           {form.mode === 'closed' && <button onClick={() => setForm({ mode: 'add' })}>Add lot</button>}
         </div>
@@ -151,6 +150,7 @@ export function App() {
           <p className="empty">No lots yet. Add your first purchase to get started.</p>
         )}
         {view === 'summary' && positions.length > 0 && <SummaryView results={results} />}
+        {view === 'ask' && <AskView snapshot={snapshot} tickers={positions.map((p) => p.ticker)} />}
         {view === 'cards' &&
           positions.map((position) => (
             <PositionCard
@@ -207,10 +207,4 @@ export function App() {
       )}
     </div>
   );
-}
-
-function messageOf(error: unknown): string {
-  const text = error instanceof Error ? error.message : String(error);
-  // Errors from the main process arrive wrapped as "Error invoking remote method 'x': Error: ...".
-  return text.replace(/^Error invoking remote method '[^']+': (Error: )?/, '');
 }
