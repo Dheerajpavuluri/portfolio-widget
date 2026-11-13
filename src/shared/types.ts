@@ -58,15 +58,50 @@ export interface QuoteSnapshot {
   delayMinutes: number;
 }
 
+/**
+ * Which notifications I want for one ticker. Percentages are positive numbers;
+ * null means that alert is off.
+ */
+export interface AlertSettings {
+  /** Today's move for the position, either way, e.g. 3 for "more than 3% up or down". */
+  dayMovePct: number | null;
+  /** Total P&L reaching this gain, e.g. 20 for "+20% overall". */
+  gainPct: number | null;
+  /** Total P&L reaching this loss, e.g. 10 for "-10% overall". */
+  lossPct: number | null;
+  /** Earnings coming up within a day. */
+  earnings: boolean;
+  /** New company news headlines. */
+  news: boolean;
+}
+
+/** What a ticker gets before I change anything: earnings only, which is rare and useful. */
+export const DEFAULT_ALERTS: AlertSettings = {
+  dayMovePct: null,
+  gainPct: null,
+  lossPct: null,
+  earnings: true,
+  news: false,
+};
+
 /** The shape of the data file on disk. */
 export interface StoredData {
   /** Bumped when the shape changes, so old files can be migrated (see src/main/migrate.ts). */
-  version: 2;
+  version: 3;
   lots: Lot[];
+  /** Keyed by ticker. A ticker with no entry uses DEFAULT_ALERTS. */
+  alerts: Record<string, AlertSettings>;
 }
 
 /** Every IPC channel the renderer may call. Main and preload both type-check against this. */
-export type IpcChannel = 'lots:list' | 'lots:add' | 'lots:update' | 'lots:delete' | 'quotes:get';
+export type IpcChannel =
+  | 'lots:list'
+  | 'lots:add'
+  | 'lots:update'
+  | 'lots:delete'
+  | 'quotes:get'
+  | 'alerts:get'
+  | 'alerts:set';
 
 /** Messages the main process pushes to the renderer without being asked. */
 export type IpcEvent = 'quotes:updated';
@@ -78,6 +113,9 @@ export interface PortfolioApi {
   updateLot(id: string, input: LotInput): Promise<Lot[]>;
   deleteLot(id: string): Promise<Lot[]>;
   getQuotes(): Promise<QuoteSnapshot>;
+  /** Alert settings for every ticker that has some; others use DEFAULT_ALERTS. */
+  getAlerts(): Promise<Record<string, AlertSettings>>;
+  setAlerts(ticker: string, settings: AlertSettings): Promise<Record<string, AlertSettings>>;
   /** Calls the listener after every price refresh. Returns a function that stops listening. */
   onQuotes(listener: (snapshot: QuoteSnapshot) => void): () => void;
 }

@@ -7,9 +7,16 @@ const pacificDate = (iso: string) =>
   new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(new Date(iso));
 
 describe('migrate', () => {
-  it('returns version 2 files unchanged', () => {
-    const data = { version: 2, lots: [{ id: 'a', ticker: 'MU', shares: 1, buyPrice: 850, boughtOn: '2026-11-05' }] };
+  const lot = { id: 'a', ticker: 'MU', shares: 1, buyPrice: 850, boughtOn: '2026-11-05' };
+
+  it('returns version 3 files unchanged', () => {
+    const alerts = { MU: { dayMovePct: 3, gainPct: null, lossPct: null, earnings: true, news: false } };
+    const data = { version: 3, lots: [lot], alerts };
     expect(migrate(data)).toEqual(data);
+  });
+
+  it('adds empty alert settings to a version 2 file', () => {
+    expect(migrate({ version: 2, lots: [lot] })).toEqual({ version: 3, lots: [lot], alerts: {} });
   });
 
   it('turns version 1 timestamps into the date the user saw', () => {
@@ -22,7 +29,8 @@ describe('migrate', () => {
       ],
     };
     expect(migrate(v1, pacificDate)).toEqual({
-      version: 2,
+      version: 3,
+      alerts: {},
       lots: [
         { id: 'a', ticker: 'MU', shares: 0.2, buyPrice: 753.87, boughtOn: '2026-11-05' },
         { id: 'b', ticker: 'MU', shares: 0.077, buyPrice: 908.66, boughtOn: '2026-09-11' },
@@ -31,7 +39,7 @@ describe('migrate', () => {
   });
 
   it('rejects anything it does not recognise', () => {
-    for (const raw of [null, 'text', {}, { version: 3, lots: [] }, { version: 2 }, { version: 1, lots: 'no' }]) {
+    for (const raw of [null, 'text', {}, { version: 4, lots: [] }, { version: 2 }, { version: 1, lots: 'no' }]) {
       expect(migrate(raw)).toBeNull();
     }
   });

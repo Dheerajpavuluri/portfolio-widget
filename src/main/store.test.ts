@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { LotInput } from '../shared/types.js';
 import { writeFileAtomic } from './atomicWrite.js';
-import { LotStore } from './lotStore.js';
+import { PortfolioStore } from './store.js';
 
 const micron: LotInput = { ticker: 'MU', shares: 1, buyPrice: 950, boughtOn: '2026-11-11' };
 
@@ -20,27 +20,27 @@ afterEach(async () => {
   await rm(dir, { recursive: true, force: true });
 });
 
-describe('LotStore', () => {
+describe('PortfolioStore', () => {
   it('starts empty when there is no file yet', async () => {
-    const store = new LotStore(file);
+    const store = new PortfolioStore(file);
     await store.load();
     expect(store.list()).toEqual([]);
   });
 
   it('saves lots and reads them back in a new session', async () => {
-    const store = new LotStore(file);
+    const store = new PortfolioStore(file);
     await store.load();
     const [saved] = await store.add(micron);
     expect(saved).toMatchObject(micron);
     expect(saved.id).toBeTruthy();
 
-    const reopened = new LotStore(file);
+    const reopened = new PortfolioStore(file);
     await reopened.load();
     expect(reopened.list()).toEqual([saved]);
   });
 
   it('edits and deletes a lot', async () => {
-    const store = new LotStore(file);
+    const store = new PortfolioStore(file);
     await store.load();
     const [saved] = await store.add(micron);
 
@@ -51,7 +51,7 @@ describe('LotStore', () => {
   });
 
   it('rejects edits to a lot that does not exist and leaves the file alone', async () => {
-    const store = new LotStore(file);
+    const store = new PortfolioStore(file);
     await store.load();
     await store.add(micron);
     const before = await readFile(file, 'utf8');
@@ -62,17 +62,17 @@ describe('LotStore', () => {
   });
 
   it('keeps every lot when many saves happen at once', async () => {
-    const store = new LotStore(file);
+    const store = new PortfolioStore(file);
     await store.load();
     await Promise.all(Array.from({ length: 20 }, (_, i) => store.add({ ...micron, shares: i + 1 })));
 
-    const reopened = new LotStore(file);
+    const reopened = new PortfolioStore(file);
     await reopened.load();
     expect(reopened.list()).toHaveLength(20);
   });
 
   it('leaves no temporary files behind', async () => {
-    const store = new LotStore(file);
+    const store = new PortfolioStore(file);
     await store.load();
     await store.add(micron);
     await store.add(micron);
@@ -83,11 +83,22 @@ describe('LotStore', () => {
     const failingWrite = async () => {
       throw new Error('disk full');
     };
-    const store = new LotStore(file, failingWrite);
+    const store = new PortfolioStore(file, failingWrite);
     await store.load();
 
     await expect(store.add(micron)).rejects.toThrow('disk full');
     expect(store.list()).toEqual([]);
+  });
+
+  it('saves alert settings per ticker', async () => {
+    const store = new PortfolioStore(file);
+    await store.load();
+    const settings = { dayMovePct: 3, gainPct: 20, lossPct: null, earnings: true, news: false };
+    expect(await store.setAlerts('MU', settings)).toEqual({ MU: settings });
+
+    const reopened = new PortfolioStore(file);
+    await reopened.load();
+    expect(reopened.alerts()).toEqual({ MU: settings });
   });
 
   it('upgrades a version 1 file and keeps a backup of the original', async () => {
@@ -97,20 +108,21 @@ describe('LotStore', () => {
     });
     await writeFile(file, v1);
 
-    const store = new LotStore(file);
+    const store = new PortfolioStore(file);
     await store.load();
     const [lot] = store.list();
     expect(lot).not.toHaveProperty('boughtAt');
     expect(lot.boughtOn).toMatch(/^2026-11-0[45]$/); // depends on the time zone the test runs in
 
     const saved = JSON.parse(await readFile(file, 'utf8'));
-    expect(saved.version).toBe(2);
+    expect(saved.version).toBe(3);
+    expect(saved.alerts).toEqual({});
     expect(await readFile(join(dir, 'portfolio.json.v1-backup'), 'utf8')).toBe(v1);
   });
 
   it('moves an unreadable file aside instead of overwriting it', async () => {
     await writeFile(file, '{ this is not json');
-    const store = new LotStore(file);
+    const store = new PortfolioStore(file);
     await store.load();
 
     expect(store.list()).toEqual([]);
