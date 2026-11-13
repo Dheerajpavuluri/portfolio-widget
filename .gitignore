@@ -7,14 +7,16 @@ dist-electron/
 release/
 coverage/
 
-# secrets and local config: API keys never go in the repo
+# secrets: API keys never go in the repo (.env.example is the empty template)
 .env
 .env.*
 !.env.example
-config.local.json
 
-# local data, in case a data file ever lands in the project folder
-*.portfolio.json
+# app data lives in the user's data folder, but never commit a copy that lands here
+portfolio.json
+portfolio.json.*
+alert-memory.json
+window.json
 *.tmp
 
 # logs and OS files
