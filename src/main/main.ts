@@ -1,11 +1,12 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, Notification } from 'electron';
 import { join } from 'node:path';
 import { BENCHMARKS } from '../shared/summary.js';
 import type { IpcEvent } from '../shared/types.js';
 import { findApiKey } from './apiKey.js';
 import { createFinnhubClient } from './finnhub.js';
 import { registerIpcHandlers } from './ipc.js';
-import { LotStore } from './lotStore.js';
+import { AlertService } from './alertService.js';
+import { PortfolioStore } from './store.js';
 import { QuoteService } from './quoteService.js';
 
 // Set by scripts/dev.mjs. When it is missing we load the built files from disk.
@@ -51,29 +52,54 @@ async function start(): Promise<void> {
   // userData is the per-user app folder, e.g. ~/Library/Application Support/portfolio-widget
   // on macOS or %APPDATA%\portfolio-widget on Windows. Nothing is stored in the project folder.
   const userData = app.getPath('userData');
-  const store = new LotStore(join(userData, 'portfolio.json'));
+  const store = new PortfolioStore(join(userData, 'portfolio.json'));
   await store.load();
 
   // The key is read here and stays in the main process. The project folder's
   // .env is checked first, which is where it lives while developing.
   const apiKey = findApiKey([join(app.getAppPath(), '.env'), join(userData, '.env')]);
+  const finnhub = apiKey ? createFinnhubClient(apiKey) : null;
+
+  const alerts = new AlertService({
+    store,
+    events: finnhub,
+    memoryFile: join(userData, 'alert-memory.json'),
+    notify: (notice) => {
+      if (Notification.isSupported()) new Notification({ title: notice.title, body: notice.body }).show();
+    },
+  });
+  await alerts.load();
+
   const quotes = new QuoteService({
-    source: apiKey ? createFinnhubClient(apiKey) : null,
+    source: finnhub,
     // Held tickers plus the market benchmarks shown in the strip.
     getTickers: () => [...new Set([...store.list().map((lot) => lot.ticker), ...BENCHMARKS.map((b) => b.ticker)])],
     publish: (snapshot) => {
       const channel: IpcEvent = 'quotes:updated';
       mainWindow?.webContents.send(channel, snapshot);
+      void alerts.onQuotes(snapshot);
     },
   });
 
-  registerIpcHandlers({ store, quotes, isTrustedSender });
+  registerIpcHandlers({
+    store,
+    quotes,
+    isTrustedSender,
+    onAlertsChanged: () => {
+      void alerts.onQuotes(quotes.current());
+      void alerts.checkEvents();
+    },
+  });
   mainWindow = createWindow();
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
   quotes.start();
-  app.on('before-quit', () => quotes.stop());
+  alerts.start();
+  app.on('before-quit', () => {
+    quotes.stop();
+    alerts.stop();
+  });
 }
 
 // Two copies of the app would both write to the same data file, so only one

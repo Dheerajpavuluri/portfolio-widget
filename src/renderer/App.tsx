@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { buildPositions, summarizePortfolio, summarizePosition } from '../shared/pnl';
-import type { Lot, LotInput, QuoteSnapshot } from '../shared/types';
+import { DEFAULT_ALERTS, type AlertSettings, type Lot, type LotInput, type QuoteSnapshot } from '../shared/types';
 import { formatMoney } from './format';
 import { LotForm } from './LotForm';
 import { MarketStrip } from './MarketStrip';
@@ -30,6 +30,7 @@ export function App() {
   const [form, setForm] = useState<FormState>({ mode: 'closed' });
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<View>(savedView);
+  const [alerts, setAlerts] = useState<Record<string, AlertSettings>>({});
 
   function chooseView(next: View) {
     setView(next);
@@ -42,7 +43,18 @@ export function App() {
 
   useEffect(() => {
     window.portfolio.listLots().then(setLots, (e: unknown) => setError(messageOf(e)));
+    window.portfolio.getAlerts().then(setAlerts, (e: unknown) => setError(messageOf(e)));
   }, []);
+
+  async function saveAlerts(ticker: string, settings: AlertSettings) {
+    try {
+      setAlerts(await window.portfolio.setAlerts(ticker, settings));
+      setError(null);
+    } catch (e) {
+      setError(messageOf(e));
+      throw e;
+    }
+  }
 
   useEffect(() => {
     // Listen first, then ask for the current prices, so an update that lands in between is not missed.
@@ -147,6 +159,8 @@ export function App() {
               quote={snapshot?.quotes[position.ticker]}
               noQuoteText={noQuoteText}
               result={results.find((r) => r.position.ticker === position.ticker) ?? null}
+              alerts={alerts[position.ticker] ?? DEFAULT_ALERTS}
+              onSaveAlerts={(settings) => saveAlerts(position.ticker, settings)}
               onEdit={(lot) => setForm({ mode: 'edit', lot })}
               onDelete={(lot) => run(() => window.portfolio.deleteLot(lot.id))}
             />

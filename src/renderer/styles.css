@@ -473,3 +473,61 @@ input:focus {
   margin: 0;
 }
 
+
+.card-alerts {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
+.alert-editor {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.alert-editor p {
+  margin: 0;
+}
+
+.alert-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.alert-row .field-error {
+  grid-column: 1 / -1;
+}
+
+.percent-input {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.percent-input input {
+  width: 64px;
+  text-align: right;
+}
+
+.alert-row.has-error input {
+  border-color: var(--danger);
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.check input {
+  width: auto;
+}

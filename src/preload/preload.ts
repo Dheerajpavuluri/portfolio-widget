@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
-import type { IpcChannel, IpcEvent, LotInput, PortfolioApi, QuoteSnapshot } from '../shared/types.js';
+import type { AlertSettings, IpcChannel, IpcEvent, LotInput, PortfolioApi, QuoteSnapshot } from '../shared/types.js';
 
 // A sandboxed preload script can only require 'electron', so this file must
 // not import any of our own code at runtime. Type-only imports are fine
@@ -15,6 +15,8 @@ const api: PortfolioApi = {
   updateLot: (id: string, input: LotInput) => invoke('lots:update', id, input),
   deleteLot: (id: string) => invoke('lots:delete', id),
   getQuotes: () => invoke('quotes:get'),
+  getAlerts: () => invoke('alerts:get'),
+  setAlerts: (ticker: string, settings: AlertSettings) => invoke('alerts:set', ticker, settings),
   onQuotes: (listener) => {
     const channel: IpcEvent = 'quotes:updated';
     // Only the snapshot is passed on. The IPC event object would give the page

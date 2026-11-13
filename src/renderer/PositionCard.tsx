@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { lotCost, type LotResult, type PositionResult } from '../shared/pnl';
-import type { Lot, Position, QuoteResult } from '../shared/types';
+import type { AlertSettings, Lot, Position, QuoteResult } from '../shared/types';
+import { AlertEditor, describeAlerts } from './AlertEditor';
 import {
   direction,
   formatDate,
@@ -18,12 +19,16 @@ interface Props {
   noQuoteText: string;
   /** Present only when there is a price. */
   result: PositionResult | null;
+  alerts: AlertSettings;
+  onSaveAlerts: (settings: AlertSettings) => Promise<void>;
   onEdit: (lot: Lot) => void;
   onDelete: (lot: Lot) => Promise<void>;
 }
 
-export function PositionCard({ position, quote, noQuoteText, result, onEdit, onDelete }: Props) {
+export function PositionCard(props: Props) {
+  const { position, quote, noQuoteText, result, alerts, onSaveAlerts, onEdit, onDelete } = props;
   const lotResults = new Map(result?.lots.map((l) => [l.lot.id, l]));
+  const [editingAlerts, setEditingAlerts] = useState(false);
 
   return (
     <section className="card">
@@ -60,6 +65,25 @@ export function PositionCard({ position, quote, noQuoteText, result, onEdit, onD
           <LotRow key={lot.id} lot={lot} result={lotResults.get(lot.id)} onEdit={onEdit} onDelete={onDelete} />
         ))}
       </ul>
+
+      {editingAlerts ? (
+        <AlertEditor
+          ticker={position.ticker}
+          settings={alerts}
+          onSave={async (settings) => {
+            await onSaveAlerts(settings);
+            setEditingAlerts(false);
+          }}
+          onCancel={() => setEditingAlerts(false)}
+        />
+      ) : (
+        <div className="card-alerts small muted">
+          <span>Alerts: {describeAlerts(alerts)}</span>
+          <button className="link" onClick={() => setEditingAlerts(true)}>
+            Change
+          </button>
+        </div>
+      )}
     </section>
   );
 }
