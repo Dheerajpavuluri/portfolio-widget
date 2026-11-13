@@ -9,8 +9,9 @@ Built with Electron, React and TypeScript. Everything stays on my machine.
 This is milestone 2 of 6.
 
 - Add, edit and delete lots (ticker, shares, buy price per share, buy date), with validation
-- Lots of the same ticker grouped into one card per ticker: price, day change with an up or down arrow, shares, average cost, value, and total P&L
-- P&L for every lot on its own line, the combined P&L for each position, and a portfolio total in the footer
+- Lots of the same ticker grouped into one card per ticker: price, day change with an up or down arrow, shares, average cost, amount invested, value now, and total P&L
+- For every lot: amount invested, value now, and P&L in dollars and percent
+- A footer with the portfolio's total invested, value now, total P&L and today's change. Positions without a price are left out of all four and listed underneath, so value now minus invested always equals total P&L
 - Prices from Finnhub, refreshed every minute while the market is open, labeled as delayed, with the time of the latest price
 - A clear market-closed state that shows the last price instead of pretending it is live
 - Tickers Finnhub cannot price say so on their card and are left out of the totals, instead of showing $0

@@ -18,9 +18,9 @@ function isTrustedSender(url: string): boolean {
 
 function createWindow(): BrowserWindow {
   const window = new BrowserWindow({
-    width: 420,
-    height: 660,
-    minWidth: 360,
+    width: 440,
+    height: 720,
+    minWidth: 400,
     minHeight: 420,
     title: 'Portfolio',
     webPreferences: {

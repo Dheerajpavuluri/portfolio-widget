@@ -14,6 +14,8 @@ const shareCount = new Intl.NumberFormat('en-US', { maximumFractionDigits: 6 });
 
 const calendarDate = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 
+const calendarDateThisYear = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
+
 const timeOfDay = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
 
 const dayAndTime = new Intl.DateTimeFormat(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' });
@@ -27,12 +29,13 @@ export const formatSignedPercent = (value: number) => signedPercent.format(value
 
 export const formatShares = (value: number) => shareCount.format(value);
 
-/** "2026-11-05" -> "Nov 5, 2026" */
-export function formatDate(ymd: string): string {
+/** "2026-11-05" -> "Nov 5", or "Nov 5, 2025" when it is not this year. */
+export function formatDate(ymd: string, now: Date = new Date()): string {
   const [year, month, day] = ymd.split('-').map(Number);
   // Built from local parts: new Date("2026-11-05") would mean midnight UTC,
   // which is still Nov 4 in California.
-  return calendarDate.format(new Date(year, month - 1, day));
+  const date = new Date(year, month - 1, day);
+  return (year === now.getFullYear() ? calendarDateThisYear : calendarDate).format(date);
 }
 
 /** "3:41 PM" for today, "Fri 1:00 PM" for an older timestamp. */

@@ -112,6 +112,14 @@ export function App() {
           {results.length > 0 ? (
             <>
               <div className="footer-row">
+                <span>Invested</span>
+                <span>{formatMoney(total.costBasis)}</span>
+              </div>
+              <div className="footer-row">
+                <span>Value now</span>
+                <span>{formatMoney(total.marketValue)}</span>
+              </div>
+              <div className="footer-row footer-total">
                 <span>Total P&amp;L</span>
                 <Change value={total.pnl} percent={total.pnlPct} />
               </div>
@@ -119,19 +127,20 @@ export function App() {
                 <span>Today</span>
                 <Change value={total.dayChange} percent={total.dayChangePct} />
               </div>
-              <div className="footer-row muted small">
-                <span>
-                  Value {formatMoney(total.marketValue)} · Cost {formatMoney(total.costBasis)}
-                </span>
-                {unpriced.length > 0 && <span>Excludes {unpriced.map((p) => p.ticker).join(', ')}</span>}
-              </div>
+              {unpriced.length > 0 && (
+                // Unpriced positions are left out of all four lines above, so Value now minus
+                // Invested always equals Total P&L.
+                <p className="footer-note muted small">
+                  Not included, no price: {unpriced.map((p) => `${p.ticker} (${formatMoney(p.costBasis)} invested)`).join(', ')}
+                </p>
+              )}
             </>
           ) : (
             <div className="footer-row">
               <span>
                 {positions.length} {positions.length === 1 ? 'position' : 'positions'}
               </span>
-              <span>Cost basis {formatMoney(positions.reduce((sum, p) => sum + p.costBasis, 0))}</span>
+              <span>Invested {formatMoney(positions.reduce((sum, p) => sum + p.costBasis, 0))}</span>
             </div>
           )}
         </footer>

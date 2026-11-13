@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { LotResult, PositionResult } from '../shared/pnl';
+import { lotCost, type LotResult, type PositionResult } from '../shared/pnl';
 import type { Lot, Position, QuoteResult } from '../shared/types';
 import {
   direction,
@@ -42,10 +42,14 @@ export function PositionCard({ position, quote, noQuoteText, result, onEdit, onD
           <dd>{formatMoney(position.avgCost)}</dd>
         </div>
         <div>
-          <dt>{result ? 'Value' : 'Cost basis'}</dt>
-          <dd>{formatMoney(result ? result.marketValue : position.costBasis)}</dd>
+          <dt>Invested</dt>
+          <dd>{formatMoney(position.costBasis)}</dd>
         </div>
         <div>
+          <dt>Value now</dt>
+          <dd>{result ? formatMoney(result.marketValue) : <span className="muted">-</span>}</dd>
+        </div>
+        <div className="span-2">
           <dt>Total P&amp;L</dt>
           <dd>{result ? <Change value={result.pnl} percent={result.pnlPct} /> : <span className="muted">-</span>}</dd>
         </div>
@@ -94,14 +98,16 @@ function LotRow({
   const [confirming, setConfirming] = useState(false);
 
   return (
+    // Two lines: what I bought, when, and its P&L; then what I put in and what it is worth now.
+    // Edit and Remove sit in their own column to the right.
     <li className="lot">
-      <div className="lot-main">
-        <span>
-          {formatShares(lot.shares)} @ {formatMoney(lot.buyPrice)}
-        </span>
+      <span>
+        {formatShares(lot.shares)} @ {formatMoney(lot.buyPrice)}{' '}
         <span className="muted small">{formatDate(lot.boughtOn)}</span>
-      </div>
-      <div className="lot-pnl">{result && <Change value={result.pnl} percent={result.pnlPct} />}</div>
+      </span>
+      <span className="lot-number">{result && <Change value={result.pnl} percent={result.pnlPct} />}</span>
+      <span className="muted small">Invested {formatMoney(lotCost(lot))}</span>
+      <span className="lot-number muted small">{result && <>Now {formatMoney(lotCost(lot) + result.pnl)}</>}</span>
       <div className="lot-actions">
         {confirming ? (
           <>
