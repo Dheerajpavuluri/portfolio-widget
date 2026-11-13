@@ -1,5 +1,6 @@
 import { app, BrowserWindow } from 'electron';
 import { join } from 'node:path';
+import { BENCHMARKS } from '../shared/summary.js';
 import type { IpcEvent } from '../shared/types.js';
 import { findApiKey } from './apiKey.js';
 import { createFinnhubClient } from './finnhub.js';
@@ -58,7 +59,8 @@ async function start(): Promise<void> {
   const apiKey = findApiKey([join(app.getAppPath(), '.env'), join(userData, '.env')]);
   const quotes = new QuoteService({
     source: apiKey ? createFinnhubClient(apiKey) : null,
-    getTickers: () => [...new Set(store.list().map((lot) => lot.ticker))],
+    // Held tickers plus the market benchmarks shown in the strip.
+    getTickers: () => [...new Set([...store.list().map((lot) => lot.ticker), ...BENCHMARKS.map((b) => b.ticker)])],
     publish: (snapshot) => {
       const channel: IpcEvent = 'quotes:updated';
       mainWindow?.webContents.send(channel, snapshot);
