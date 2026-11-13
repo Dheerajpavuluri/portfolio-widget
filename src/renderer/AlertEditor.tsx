@@ -34,7 +34,11 @@ export function AlertEditor({ ticker, settings, onSave, onCancel }: Props) {
       setErrors(result.errors);
       return;
     }
-    await onSave(result.value);
+    try {
+      await onSave(result.value);
+    } catch {
+      // The app already shows what went wrong; keeping the form open keeps what I typed.
+    }
   }
 
   return (
