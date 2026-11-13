@@ -6,7 +6,7 @@ Built with Electron, React and TypeScript. Everything stays on my machine.
 
 ## What works so far
 
-This is milestone 3 of 6.
+This is milestone 4 of 6.
 
 - Add, edit and delete lots (ticker, shares, buy price per share, buy date), with validation
 - Lots of the same ticker grouped into one card per ticker: price, day change with an up or down arrow, shares, average cost, amount invested, value now, and total P&L
@@ -18,6 +18,7 @@ This is milestone 3 of 6.
 - A market strip at the top: today's move for the S&P 500 and Nasdaq 100 next to my portfolio's, and one sentence comparing them
 - A Summary view with every position in one table: share of the portfolio, value, today's move and total P&L, plus the best and worst performers today and overall
 - Lots saved to a local JSON file, written atomically so a crash cannot corrupt it
+- Alerts I set per stock, shown as desktop notifications: today's move passing a percentage, total P&L reaching a gain target or a loss limit, earnings within a day, and new company news. Nothing else notifies me
 - Only one copy of the app runs at a time; starting it again brings the open window to the front
 
 ### Roadmap
@@ -25,7 +26,7 @@ This is milestone 3 of 6.
 1. Project setup, lot entry, local storage, P&L math and tests (done)
 2. Live quotes and per-ticker cards with P&L (done)
 3. Market strip and combined portfolio view (done)
-4. Threshold alerts
+4. Threshold alerts (done)
 5. Plain-language Q&A about my positions and a morning digest
 6. Polish, screenshots
 
@@ -61,12 +62,13 @@ The tests cover:
 
 - the P&L math, including the two-lot Micron case below (`src/shared/pnl.test.ts`)
 - lot validation (`src/shared/validateLot.test.ts`)
-- the file store: saving, reloading, concurrent saves, failed saves, unreadable files and upgrading old files (`src/main/lotStore.test.ts`, `src/main/migrate.test.ts`)
+- the file store: saving, reloading, concurrent saves, failed saves, unreadable files and upgrading old files (`src/main/store.test.ts`, `src/main/migrate.test.ts`)
 - quote parsing, including Finnhub's all-zero answer for unknown tickers, and how HTTP errors are reported (`src/main/finnhub.test.ts`)
 - when prices are refreshed, open versus closed market, new tickers, unavailable tickers and failed refreshes (`src/main/quoteService.test.ts`)
 - regular trading hours across daylight saving time (`src/shared/marketHours.test.ts`)
 - portfolio weights, best and worst performers, and the sentence that compares my day with the market's (`src/shared/summary.test.ts`)
 - finding the API key (`src/main/apiKey.test.ts`)
+- alert thresholds: crossing, not repeating, re-arming targets, starting fresh each trading day, earnings timing and news de-duplication (`src/main/alerts.test.ts`), the service that runs them and survives restarts (`src/main/alertService.test.ts`), and alert settings validation (`src/shared/validateAlerts.test.ts`)
 
 The tests never call Finnhub. They use fake responses shaped like Finnhub's real ones.
 
@@ -117,6 +119,26 @@ Prices come from Finnhub's free plan, which I treat as about 15 minutes behind. 
 
 The free plan's limit is 60 calls a minute. Each refresh uses one status call, one call per ticker, and two for SPY and QQQ, so this works for up to about 55 tickers.
 
+## How alerts work
+
+Each card has an Alerts line with a Change button. Leaving a box empty turns that alert off. New tickers start with only the earnings alert on, which is rare and useful; everything else is opt in.
+
+| Alert | Fires when | Announced |
+| --- | --- | --- |
+| Today's move | the position's day change passes +X% or -X% | once per direction per trading day |
+| Gain target | total P&L reaches +X% | once, then again only after it drops at least 1 point below the target and comes back |
+| Loss limit | total P&L reaches -X% | once, re-armed the same way |
+| Earnings | Finnhub's calendar shows earnings today or tomorrow | once per earnings date |
+| News | Finnhub has headlines I have not been told about | at most one notification per stock per check, with the newest headline |
+
+The targets report facts, like "MU is up 20.4% overall. You set a gain target at 20%." They do not tell me to buy or sell; that decision stays mine.
+
+The 1-point gap before a target re-arms is there because a price sitting right on the line would otherwise notify me every minute.
+
+Price alerts are checked every time prices refresh. Earnings and news need their own Finnhub calls, so they are checked every 15 minutes: each stock's earnings calendar at most once a day, and news only for stocks with news alerts on. Changing a setting runs the checks right away.
+
+The decisions are pure functions in `src/main/alerts.ts`: given the latest numbers and a record of what was already announced, they return the notifications to show and the updated record. That record is saved to `alert-memory.json` next to my data, so restarting the app does not repeat an alert.
+
 ## Storage and privacy
 
 My lots live in one file, `portfolio.json`, in the app's user data folder:
@@ -133,7 +155,7 @@ Nothing is stored in the project folder. The only network traffic is quote and m
 - Saves go through a queue, so two quick edits cannot overwrite each other.
 - The in-memory copy is updated only after the file is written, so a failed save never shows data that was not saved.
 - If the file cannot be read (for example after a manual edit went wrong), it is renamed to `portfolio.json.unreadable-<time>` instead of being overwritten, and the app starts empty.
-- The file has a `version` number. When the format changes, the app upgrades older files on startup and first saves a copy as `portfolio.json.v<old version>-backup`. Version 1 stored a full purchase timestamp; version 2 stores only the date, using the date the timestamp showed on my computer.
+- The file has a `version` number. When the format changes, the app upgrades older files on startup and first saves a copy as `portfolio.json.v<old version>-backup`. Version 1 stored a full purchase timestamp; version 2 stores only the date, using the date the timestamp showed on my computer; version 3 adds alert settings per stock.
 
 The Finnhub key is read from `.env` (or a `FINNHUB_API_KEY` environment variable) by the main process only. It is sent to Finnhub in a request header rather than in the URL, so it never appears in addresses or error messages.
 
@@ -142,13 +164,13 @@ The Finnhub key is read from `.env` (or a `FINNHUB_API_KEY` environment variable
 Electron runs two kinds of process. The main process has full Node.js access. The renderer is the web page I see. I keep the page locked down:
 
 - **Context isolation, sandbox, and no Node.js in the page.** The page cannot reach the file system, environment variables or the API key.
-- **One narrow bridge.** The preload script exposes six functions on `window.portfolio`: `listLots`, `addLot`, `updateLot`, `deleteLot`, `getQuotes` and `onQuotes`. The first five send an IPC message to the main process; `onQuotes` receives the price updates the main process pushes after each refresh. Only the price data is passed to the page, never Electron's IPC event object.
-- **The main process checks everything.** It re-validates every lot that comes over IPC, even though the form already checked it, and it only answers messages from the app's own page.
+- **One narrow bridge.** The preload script exposes a few functions on `window.portfolio`: `listLots`, `addLot`, `updateLot`, `deleteLot`, `getQuotes`, `getAlerts`, `setAlerts` and `onQuotes`. Each one but the last sends an IPC message to the main process; `onQuotes` receives the price updates the main process pushes after each refresh. Only the price data is passed to the page, never Electron's IPC event object.
+- **The main process checks everything.** It re-validates every lot and alert setting that comes over IPC, even though the form already checked it, and it only answers messages from the app's own page.
 - **The page loads nothing from outside.** The built page has a Content Security Policy that only allows the app's own files. It cannot navigate away or open new windows.
 
 ```
 src/
-  main/       Electron main process: window, IPC handlers, file storage, Finnhub client, price refresh
+  main/       Electron main process: window, IPC handlers, file storage, Finnhub client, price refresh, alerts
   preload/    the bridge between the page and the main process
   renderer/   React UI
   shared/     types, P&L math, validation and trading hours used by both sides
