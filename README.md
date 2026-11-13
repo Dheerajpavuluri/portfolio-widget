@@ -6,7 +6,7 @@ Built with Electron, React and TypeScript. Everything stays on my machine.
 
 ## What works so far
 
-This is milestone 4 of 6.
+This is milestone 5 of 6.
 
 - Add, edit and delete lots (ticker, shares, buy price per share, buy date), with validation
 - Lots of the same ticker grouped into one card per ticker: price, day change with an up or down arrow, shares, average cost, amount invested, value now, and total P&L
@@ -19,6 +19,7 @@ This is milestone 4 of 6.
 - A Summary view with every position in one table: share of the portfolio, value, today's move and total P&L, plus the best and worst performers today and overall
 - Lots saved to a local JSON file, written atomically so a crash cannot corrupt it
 - Alerts I set per stock, shown as desktop notifications: today's move passing a percentage, total P&L reaching a gain target or a loss limit, earnings within a day, and new company news. Nothing else notifies me
+- An Ask view: a digest of the day built from my own numbers, and a box where I ask plain questions like "How am I doing on MU?" or "What moved most today?", answered by a local model through Ollama, or by Claude if I add an Anthropic key
 - Only one copy of the app runs at a time; starting it again brings the open window to the front
 
 ### Roadmap
@@ -27,7 +28,7 @@ This is milestone 4 of 6.
 2. Live quotes and per-ticker cards with P&L (done)
 3. Market strip and combined portfolio view (done)
 4. Threshold alerts (done)
-5. Plain-language Q&A about my positions and a morning digest
+5. Plain-language Q&A about my positions and a morning digest (done)
 6. Polish, screenshots
 
 ## Running it
@@ -40,7 +41,17 @@ Put the key in a file called `.env` in the project folder:
 FINNHUB_API_KEY=your_key_here
 ```
 
-`.gitignore` excludes `.env`, so the key never reaches the repo. Then:
+`.gitignore` excludes `.env`, so the key never reaches the repo.
+
+For the Ask view, either install [Ollama](https://ollama.com) and run `ollama pull llama3.2`, or add an Anthropic key to the same `.env` file to use Claude instead:
+
+```
+ANTHROPIC_API_KEY=your_anthropic_key
+```
+
+Optional settings in `.env`: `OLLAMA_MODEL` (default `llama3.2`) and `ANTHROPIC_MODEL` (default `claude-haiku-5-5`).
+
+Then:
 
 ```bash
 npm install
@@ -67,10 +78,13 @@ The tests cover:
 - when prices are refreshed, open versus closed market, new tickers, unavailable tickers and failed refreshes (`src/main/quoteService.test.ts`)
 - regular trading hours across daylight saving time (`src/shared/marketHours.test.ts`)
 - portfolio weights, best and worst performers, and the sentence that compares my day with the market's (`src/shared/summary.test.ts`)
-- finding the API key (`src/main/apiKey.test.ts`)
+- reading keys and settings from `.env` (`src/main/envSettings.test.ts`)
 - alert thresholds: crossing, not repeating, re-arming targets, starting fresh each trading day, earnings timing and news de-duplication (`src/main/alerts.test.ts`), the service that runs them and survives restarts (`src/main/alertService.test.ts`), and alert settings validation (`src/shared/validateAlerts.test.ts`)
 
-The tests never call Finnhub. They use fake responses shaped like Finnhub's real ones.
+- the two model providers, including the messages when Ollama is not running or a key is wrong (`src/main/chatModels.test.ts`)
+- which data goes with a question, the digest, and the copilot that ties them together (`src/main/copilot.test.ts`)
+
+The tests never call Finnhub, Ollama or Anthropic. They use fake responses shaped like the real ones.
 
 ## How the P&L math works
 
@@ -139,6 +153,30 @@ Price alerts are checked every time prices refresh. Earnings and news need their
 
 The decisions are pure functions in `src/main/alerts.ts`: given the latest numbers and a record of what was already announced, they return the notifications to show and the updated record. That record is saved to `alert-memory.json` next to my data, so restarting the app does not repeat an alert.
 
+## How the Ask view works
+
+**The digest** sits at the top: a few lines on today's value and change, how that compares with the S&P 500, the biggest moves, overall P&L, earnings in the next week, and any stock without a price. Its title follows the market clock: "Morning digest" before the open, "Today so far" while trading, "Today's close" after. It is built on my machine from my own numbers (`src/main/digest.ts`), with no model involved, so it never sends anything anywhere.
+
+**Questions** go through one small interface in the main process (`src/main/chatModels.ts`) with two providers behind it:
+
+| | Ollama (default) | Claude (when `ANTHROPIC_API_KEY` is set) |
+| --- | --- | --- |
+| Runs | on my Mac, at `127.0.0.1:11434` | Anthropic's API |
+| My data | never leaves the machine | sent with each question |
+| If unavailable | a plain message saying how to install it or pull the model | a plain message about the key or the connection |
+
+The window shows which model is active, and whether my data stays on the Mac.
+
+**What gets sent, and when.** The window only sends my question. The main process adds the data, and only when I ask:
+
+- If the question names tickers I hold ("how am I doing on mu?"), only those positions are sent, with each lot.
+- Otherwise a one-line summary of each position is sent, which is what questions like "what moved most today?" need.
+- The market move and the time of the prices go with either.
+
+Nothing else is sent: no file paths, no keys, no alert settings. Under each answer, "What was sent" shows exactly that text. Tickers are matched as whole words, so "mutual" does not match MU. Company names are not matched, so "Micron" sends the general summary instead of MU alone.
+
+The system prompt tells the model to use only that data, say so when the answer is not in it, and describe the numbers without telling me to buy or sell.
+
 ## Storage and privacy
 
 My lots live in one file, `portfolio.json`, in the app's user data folder:
@@ -147,7 +185,7 @@ My lots live in one file, `portfolio.json`, in the app's user data folder:
 - Windows: `%APPDATA%\portfolio-widget\`
 - Linux: `~/.config/portfolio-widget/`
 
-Nothing is stored in the project folder. The only network traffic is quote and market-status requests to Finnhub, which carry ticker symbols and nothing about my positions.
+Nothing is stored in the project folder. Network traffic is limited to Finnhub requests (quotes, market status, earnings and news), which carry ticker symbols and nothing about my positions, plus questions I ask in the Ask view. Those go to Ollama on my own machine, or to Anthropic only if I have added an Anthropic key.
 
 **How saving works:**
 
@@ -157,20 +195,20 @@ Nothing is stored in the project folder. The only network traffic is quote and m
 - If the file cannot be read (for example after a manual edit went wrong), it is renamed to `portfolio.json.unreadable-<time>` instead of being overwritten, and the app starts empty.
 - The file has a `version` number. When the format changes, the app upgrades older files on startup and first saves a copy as `portfolio.json.v<old version>-backup`. Version 1 stored a full purchase timestamp; version 2 stores only the date, using the date the timestamp showed on my computer; version 3 adds alert settings per stock.
 
-The Finnhub key is read from `.env` (or a `FINNHUB_API_KEY` environment variable) by the main process only. It is sent to Finnhub in a request header rather than in the URL, so it never appears in addresses or error messages.
+Keys are read from `.env` (or environment variables of the same names) by the main process only. Each is sent in a request header rather than in the URL, so it never appears in addresses or error messages.
 
 ## How the app is put together
 
 Electron runs two kinds of process. The main process has full Node.js access. The renderer is the web page I see. I keep the page locked down:
 
 - **Context isolation, sandbox, and no Node.js in the page.** The page cannot reach the file system, environment variables or the API key.
-- **One narrow bridge.** The preload script exposes a few functions on `window.portfolio`: `listLots`, `addLot`, `updateLot`, `deleteLot`, `getQuotes`, `getAlerts`, `setAlerts` and `onQuotes`. Each one but the last sends an IPC message to the main process; `onQuotes` receives the price updates the main process pushes after each refresh. Only the price data is passed to the page, never Electron's IPC event object.
+- **One narrow bridge.** The preload script exposes a few functions on `window.portfolio`: `listLots`, `addLot`, `updateLot`, `deleteLot`, `getQuotes`, `getAlerts`, `setAlerts`, `copilotInfo`, `ask`, `getDigest` and `onQuotes`. Each one but the last sends an IPC message to the main process; `onQuotes` receives the price updates the main process pushes after each refresh. Only the price data is passed to the page, never Electron's IPC event object.
 - **The main process checks everything.** It re-validates every lot and alert setting that comes over IPC, even though the form already checked it, and it only answers messages from the app's own page.
 - **The page loads nothing from outside.** The built page has a Content Security Policy that only allows the app's own files. It cannot navigate away or open new windows.
 
 ```
 src/
-  main/       Electron main process: window, IPC handlers, file storage, Finnhub client, price refresh, alerts
+  main/       Electron main process: window, IPC handlers, file storage, Finnhub client, price refresh, alerts, copilot and digest
   preload/    the bridge between the page and the main process
   renderer/   React UI
   shared/     types, P&L math, validation and trading hours used by both sides
