@@ -1,6 +1,7 @@
 import { buildPositions, summarizePortfolio, summarizePosition, type PositionResult } from '../shared/pnl.js';
 import { BENCHMARKS, quoteChangePct } from '../shared/summary.js';
 import type { Lot, QuoteSnapshot } from '../shared/types.js';
+import { money, pct, signedMoney } from './text.js';
 
 /** Everything the copilot and the digest may draw on, computed from my lots and the latest prices. */
 export interface PortfolioFacts {
@@ -104,12 +105,6 @@ function positionLine(r: PositionResult): string {
   )})`;
 }
 
-const dollars = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-// Same look as the window ($3,140.98), so the digest and answers match the cards.
-export const money = (v: number) => `$${dollars.format(v)}`;
-export const signedMoney = (v: number) => `${v > 0 ? '+' : v < 0 ? '-' : ''}$${dollars.format(Math.abs(v))}`;
-export const pct = (v: number) => `${v > 0 ? '+' : ''}${v.toFixed(2)}%`;
 const round = (v: number) => Math.round(v * 1e6) / 1e6;
 
 const newYorkFormat = new Intl.DateTimeFormat('en-US', {
@@ -121,4 +116,4 @@ const newYorkFormat = new Intl.DateTimeFormat('en-US', {
   minute: '2-digit',
 });
 
-export const newYorkTime = (iso: string) => newYorkFormat.format(new Date(iso));
+const newYorkTime = (iso: string) => newYorkFormat.format(new Date(iso));

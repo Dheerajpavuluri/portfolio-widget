@@ -2,7 +2,8 @@ import { marketDate, summarizePortfolio } from '../shared/pnl.js';
 import { describeDay } from '../shared/summary.js';
 import type { Digest } from '../shared/types.js';
 import { addDays, type EarningsEvent } from './alerts.js';
-import { money, pct, signedMoney, type PortfolioFacts } from './copilotContext.js';
+import type { PortfolioFacts } from './copilotContext.js';
+import { money, pct, signedMoney } from './text.js';
 
 const newYorkClock = new Intl.DateTimeFormat('en-US', {
   timeZone: 'America/New_York',

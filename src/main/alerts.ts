@@ -1,5 +1,6 @@
 import { marketDate, type PositionResult } from '../shared/pnl.js';
 import { DEFAULT_ALERTS, type AlertSettings } from '../shared/types.js';
+import { signedMoney } from './text.js';
 
 // Deciding when to notify, as pure functions: they take what is known now plus
 // what was already announced, and return the notifications to show and the
@@ -44,7 +45,7 @@ export const EMPTY_MEMORY: AlertMemory = { dayMoves: {}, targets: {}, earnings: 
  * A target re-arms only after P&L moves back this many points inside it,
  * so a position sitting right at the line does not notify every minute.
  */
-export const TARGET_REARM_POINTS = 1;
+const TARGET_REARM_POINTS = 1;
 
 const NEWS_IDS_KEPT = 200;
 
@@ -87,7 +88,7 @@ function moveNotice(ticker: string, way: 'up' | 'down', pct: number, dollars: nu
   return {
     ticker,
     title: `${ticker} is ${way} ${Math.abs(pct).toFixed(1)}% today`,
-    body: `My position is ${signedDollars(dollars)} today. Alert set at ${threshold}%.`,
+    body: `My position is ${signedMoney(dollars)} today. Alert set at ${threshold}%.`,
   };
 }
 
@@ -116,7 +117,7 @@ export function checkTargets(
         notices.push({
           ticker,
           title: `${ticker} is up ${pct.toFixed(1)}% overall`,
-          body: `Total P&L ${signedDollars(r.pnl)}. You set a gain target at ${gainPct}%.`,
+          body: `Total P&L ${signedMoney(r.pnl)}. You set a gain target at ${gainPct}%.`,
         });
       } else if (state.gain && pct < gainPct - TARGET_REARM_POINTS) {
         state.gain = false;
@@ -129,7 +130,7 @@ export function checkTargets(
         notices.push({
           ticker,
           title: `${ticker} is down ${Math.abs(pct).toFixed(1)}% overall`,
-          body: `Total P&L ${signedDollars(r.pnl)}. You set a loss limit at ${lossPct}%.`,
+          body: `Total P&L ${signedMoney(r.pnl)}. You set a loss limit at ${lossPct}%.`,
         });
       } else if (state.loss && pct > -lossPct + TARGET_REARM_POINTS) {
         state.loss = false;
@@ -195,11 +196,6 @@ export function checkNews(
   }
 
   return { notices, memory: { ...memory, news } };
-}
-
-function signedDollars(value: number): string {
-  const sign = value > 0 ? '+' : value < 0 ? '-' : '';
-  return `${sign}$${Math.abs(value).toFixed(2)}`;
 }
 
 /** Adds days to a YYYY-MM-DD date, using UTC so time zones and daylight saving cannot shift it. */
