@@ -1,5 +1,13 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
-import type { AlertSettings, IpcChannel, IpcEvent, LotInput, PortfolioApi, QuoteSnapshot } from '../shared/types.js';
+import type {
+  AlertSettings,
+  IpcChannel,
+  IpcEvent,
+  LotInput,
+  PortfolioApi,
+  QuoteSnapshot,
+  ThemeSource,
+} from '../shared/types.js';
 
 // A sandboxed preload script can only require 'electron', so this file must
 // not import any of our own code at runtime. Type-only imports are fine
@@ -22,7 +30,7 @@ const api: PortfolioApi = {
   getDigest: () => invoke('digest:get'),
   appInfo: () => invoke('app:info'),
   setAlwaysOnTop: (on: boolean) => invoke('window:always-on-top', on),
-  setTheme: (theme: 'light' | 'dark' | 'system') => invoke('theme:set', theme),
+  setTheme: (theme: ThemeSource) => invoke('theme:set', theme),
   onQuotes: (listener) => {
     const channel: IpcEvent = 'quotes:updated';
     // Only the snapshot is passed on. The IPC event object would give the page

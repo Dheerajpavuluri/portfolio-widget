@@ -111,6 +111,12 @@ export interface Digest {
   lines: string[];
 }
 
+/** A theme I picked with the bulb button. */
+export type Theme = 'light' | 'dark';
+
+/** What the window frame should follow: my pick, or the system setting until I make one. */
+export type ThemeSource = Theme | 'system';
+
 /** Things about the running app the window needs to show. */
 export interface AppInfo {
   /** Where the .env file with the API keys belongs, for the "no key" message. */
@@ -154,7 +160,7 @@ export interface PortfolioApi {
   appInfo(): Promise<AppInfo>;
   setAlwaysOnTop(on: boolean): Promise<boolean>;
   /** Makes the window frame follow the page's theme. */
-  setTheme(theme: 'light' | 'dark' | 'system'): Promise<void>;
+  setTheme(theme: ThemeSource): Promise<void>;
   /** Calls the listener after every price refresh. Returns a function that stops listening. */
   onQuotes(listener: (snapshot: QuoteSnapshot) => void): () => void;
 }

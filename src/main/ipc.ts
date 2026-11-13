@@ -1,5 +1,5 @@
 import { ipcMain, nativeTheme, type IpcMainInvokeEvent } from 'electron';
-import type { AlertSettings, AppInfo, Digest, IpcChannel, Lot, LotInput } from '../shared/types.js';
+import type { AlertSettings, AppInfo, Digest, IpcChannel, Lot, LotInput, ThemeSource } from '../shared/types.js';
 import { validateAlerts } from '../shared/validateAlerts.js';
 import { TICKER_PATTERN, validateLot } from '../shared/validateLot.js';
 import { MAX_QUESTION_LENGTH, type Copilot } from './copilot.js';
@@ -56,9 +56,10 @@ export function registerIpcHandlers(handlers: Handlers): void {
   handle('digest:get', () => digest());
   handle('app:info', () => appInfo());
   handle('theme:set', (theme) => {
-    if (theme !== 'light' && theme !== 'dark' && theme !== 'system') throw new Error('Unknown theme');
+    const known: ThemeSource[] = ['light', 'dark', 'system'];
+    if (!known.includes(theme as ThemeSource)) throw new Error('Unknown theme');
     // Controls the title bar and other native parts of the window.
-    nativeTheme.themeSource = theme;
+    nativeTheme.themeSource = theme as ThemeSource;
   });
   handle('window:always-on-top', (on) => {
     if (typeof on !== 'boolean') throw new Error('Expected true or false');

@@ -1,4 +1,4 @@
-export type Theme = 'light' | 'dark';
+import type { Theme } from '../shared/types';
 
 const THEME_KEY = 'portfolio-widget:theme';
 

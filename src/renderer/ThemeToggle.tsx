@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { applyTheme, currentTheme, saveTheme, type Theme } from './theme';
+import type { Theme } from '../shared/types';
+import { applyTheme, currentTheme, saveTheme } from './theme';
 
 /** A lightbulb button: lit for the light theme, off for the dark one. Clicking flips it. */
 export function ThemeToggle() {
