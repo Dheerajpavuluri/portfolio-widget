@@ -3,17 +3,42 @@ import { buildPositions, summarizePortfolio, summarizePosition } from '../shared
 import type { Lot, LotInput, QuoteSnapshot } from '../shared/types';
 import { formatMoney } from './format';
 import { LotForm } from './LotForm';
+import { MarketStrip } from './MarketStrip';
 import { Change, PositionCard } from './PositionCard';
 import { StatusBar } from './StatusBar';
+import { SummaryView } from './SummaryView';
 
 // What the form panel is doing: closed, adding a new lot, or editing one.
 type FormState = { mode: 'closed' } | { mode: 'add' } | { mode: 'edit'; lot: Lot };
+
+type View = 'cards' | 'summary';
+const VIEW_KEY = 'portfolio-widget:view';
+
+// The chosen view is only a display preference, so it lives in the window's own
+// storage. Reading it can fail in some contexts, and then the app shows cards.
+function savedView(): View {
+  try {
+    return localStorage.getItem(VIEW_KEY) === 'summary' ? 'summary' : 'cards';
+  } catch {
+    return 'cards';
+  }
+}
 
 export function App() {
   const [lots, setLots] = useState<Lot[] | null>(null);
   const [snapshot, setSnapshot] = useState<QuoteSnapshot | null>(null);
   const [form, setForm] = useState<FormState>({ mode: 'closed' });
   const [error, setError] = useState<string | null>(null);
+  const [view, setView] = useState<View>(savedView);
+
+  function chooseView(next: View) {
+    setView(next);
+    try {
+      localStorage.setItem(VIEW_KEY, next);
+    } catch {
+      // Not remembered this time; nothing else depends on it.
+    }
+  }
 
   useEffect(() => {
     window.portfolio.listLots().then(setLots, (e: unknown) => setError(messageOf(e)));
@@ -68,10 +93,29 @@ export function App() {
     <div className="app">
       <header className="app-header">
         <h1>Portfolio</h1>
-        {form.mode === 'closed' && <button onClick={() => setForm({ mode: 'add' })}>Add lot</button>}
+        <div className="header-actions">
+          <div className="toggle" role="group" aria-label="View">
+            <button
+              className={view === 'cards' ? 'active' : ''}
+              aria-pressed={view === 'cards'}
+              onClick={() => chooseView('cards')}
+            >
+              Cards
+            </button>
+            <button
+              className={view === 'summary' ? 'active' : ''}
+              aria-pressed={view === 'summary'}
+              onClick={() => chooseView('summary')}
+            >
+              Summary
+            </button>
+          </div>
+          {form.mode === 'closed' && <button onClick={() => setForm({ mode: 'add' })}>Add lot</button>}
+        </div>
       </header>
 
       <StatusBar snapshot={snapshot} />
+      <MarketStrip snapshot={snapshot} portfolioPct={results.length > 0 ? total.dayChangePct : null} />
 
       {error && (
         <p className="error-banner" role="alert">
@@ -94,17 +138,19 @@ export function App() {
         {lots?.length === 0 && form.mode === 'closed' && (
           <p className="empty">No lots yet. Add your first purchase to get started.</p>
         )}
-        {positions.map((position) => (
-          <PositionCard
-            key={position.ticker}
-            position={position}
-            quote={snapshot?.quotes[position.ticker]}
-            noQuoteText={noQuoteText}
-            result={results.find((r) => r.position.ticker === position.ticker) ?? null}
-            onEdit={(lot) => setForm({ mode: 'edit', lot })}
-            onDelete={(lot) => run(() => window.portfolio.deleteLot(lot.id))}
-          />
-        ))}
+        {view === 'summary' && positions.length > 0 && <SummaryView results={results} />}
+        {view === 'cards' &&
+          positions.map((position) => (
+            <PositionCard
+              key={position.ticker}
+              position={position}
+              quote={snapshot?.quotes[position.ticker]}
+              noQuoteText={noQuoteText}
+              result={results.find((r) => r.position.ticker === position.ticker) ?? null}
+              onEdit={(lot) => setForm({ mode: 'edit', lot })}
+              onDelete={(lot) => run(() => window.portfolio.deleteLot(lot.id))}
+            />
+          ))}
       </main>
 
       {positions.length > 0 && (
