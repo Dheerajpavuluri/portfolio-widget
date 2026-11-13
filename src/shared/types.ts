@@ -131,7 +131,8 @@ export type IpcChannel =
   | 'copilot:ask'
   | 'digest:get'
   | 'app:info'
-  | 'window:always-on-top';
+  | 'window:always-on-top'
+  | 'theme:set';
 
 /** Messages the main process pushes to the renderer without being asked. */
 export type IpcEvent = 'quotes:updated';
@@ -152,6 +153,8 @@ export interface PortfolioApi {
   getDigest(): Promise<Digest>;
   appInfo(): Promise<AppInfo>;
   setAlwaysOnTop(on: boolean): Promise<boolean>;
+  /** Makes the window frame follow the page's theme. */
+  setTheme(theme: 'light' | 'dark' | 'system'): Promise<void>;
   /** Calls the listener after every price refresh. Returns a function that stops listening. */
   onQuotes(listener: (snapshot: QuoteSnapshot) => void): () => void;
 }

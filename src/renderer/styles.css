@@ -5,6 +5,8 @@
   --muted: #6e6e73;
   --border: #e3e3e0;
   --accent: #2f5bd3;
+  /* Text on accent-colored buttons. */
+  --on-accent: #ffffff;
   --danger: #c0392b;
   --up: #1e7d45;
   --down: #c0392b;
@@ -18,18 +20,42 @@
   font-variant-numeric: tabular-nums;
 }
 
+/*
+ * Dark colors apply when I pick dark with the bulb button, or when I have not
+ * picked and the system is in dark mode. data-theme on <html> holds my pick.
+ */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --bg: #161618;
     --surface: #202023;
     --text: #ececee;
     --muted: #9a9aa0;
     --border: #2f2f33;
     --accent: #7c9cf5;
+    --on-accent: #0e1424;
     --danger: #ef7b6e;
     --up: #5cc98a;
     --down: #ef7b6e;
+    color-scheme: dark;
   }
+}
+
+:root[data-theme='dark'] {
+  --bg: #161618;
+  --surface: #202023;
+  --text: #ececee;
+  --muted: #9a9aa0;
+  --border: #2f2f33;
+  --accent: #7c9cf5;
+  --on-accent: #0e1424;
+  --danger: #ef7b6e;
+  --up: #5cc98a;
+  --down: #ef7b6e;
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
 }
 
 * {
@@ -67,7 +93,7 @@ button {
   font: inherit;
   border: 1px solid var(--accent);
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   border-radius: 7px;
   padding: 5px 12px;
   cursor: pointer;
@@ -629,4 +655,38 @@ textarea:focus {
 
 .notice code {
   word-break: break-all;
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.theme-toggle:hover {
+  color: var(--text);
+}
+
+.theme-toggle svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* A lit bulb in the light theme, an unlit outline in the dark one. */
+.theme-toggle.lit .bulb-glass {
+  fill: #f5c542;
+  stroke: #b8901f;
 }

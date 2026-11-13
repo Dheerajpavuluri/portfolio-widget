@@ -22,6 +22,7 @@ const api: PortfolioApi = {
   getDigest: () => invoke('digest:get'),
   appInfo: () => invoke('app:info'),
   setAlwaysOnTop: (on: boolean) => invoke('window:always-on-top', on),
+  setTheme: (theme: 'light' | 'dark' | 'system') => invoke('theme:set', theme),
   onQuotes: (listener) => {
     const channel: IpcEvent = 'quotes:updated';
     // Only the snapshot is passed on. The IPC event object would give the page

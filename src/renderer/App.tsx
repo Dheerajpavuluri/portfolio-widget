@@ -15,6 +15,7 @@ import { MarketStrip } from './MarketStrip';
 import { Change, PositionCard } from './PositionCard';
 import { StatusBar } from './StatusBar';
 import { SummaryView } from './SummaryView';
+import { ThemeToggle } from './ThemeToggle';
 
 // What the form panel is doing: closed, adding a new lot, or editing one.
 type FormState = { mode: 'closed' } | { mode: 'add' } | { mode: 'edit'; lot: Lot };
@@ -128,7 +129,10 @@ export function App() {
     <div className="app">
       <header className="app-header">
         <div className="title">
-          <h1>Portfolio</h1>
+          <div className="title-row">
+            <h1>Portfolio</h1>
+            <ThemeToggle />
+          </div>
           {appInfo && (
             <button
               className={appInfo.alwaysOnTop ? 'link pin active' : 'link pin'}
