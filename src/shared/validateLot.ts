@@ -8,7 +8,7 @@ export type ValidationResult =
   | { ok: false; errors: Partial<Record<LotField, string>> };
 
 // Letters first, then letters, digits, dots or dashes (BRK.B, BF-B). Up to 10 characters.
-const TICKER_PATTERN = /^[A-Z][A-Z0-9.-]{0,9}$/;
+export const TICKER_PATTERN = /^[A-Z][A-Z0-9.-]{0,9}$/;
 
 /**
  * Checks a lot before it is saved. The form uses this to show errors, and the

@@ -1,7 +1,7 @@
 import { ipcMain, nativeTheme, type IpcMainInvokeEvent } from 'electron';
 import type { AlertSettings, AppInfo, Digest, IpcChannel, Lot, LotInput } from '../shared/types.js';
 import { validateAlerts } from '../shared/validateAlerts.js';
-import { validateLot } from '../shared/validateLot.js';
+import { TICKER_PATTERN, validateLot } from '../shared/validateLot.js';
 import { MAX_QUESTION_LENGTH, type Copilot } from './copilot.js';
 import type { PortfolioStore } from './store.js';
 import type { QuoteService } from './quoteService.js';
@@ -86,7 +86,7 @@ function checkAlerts(input: unknown): AlertSettings {
 
 function checkTicker(ticker: unknown): string {
   // Same rule as the lot form, so settings can only be saved for a real-looking ticker.
-  if (typeof ticker !== 'string' || !/^[A-Z][A-Z0-9.-]{0,9}$/.test(ticker)) throw new Error('Invalid ticker');
+  if (typeof ticker !== 'string' || !TICKER_PATTERN.test(ticker)) throw new Error('Invalid ticker');
   return ticker;
 }
 
