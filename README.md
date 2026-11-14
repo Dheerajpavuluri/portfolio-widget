@@ -10,9 +10,30 @@ Built with Electron, React and TypeScript. My data stays on my machine.
 | --- | --- | --- | --- |
 | <img src="docs/cards.png" width="200" alt="Position cards with price, day change, lots and P&L"> | <img src="docs/summary.png" width="200" alt="All positions in one table with weights and best and worst performers"> | <img src="docs/ask.png" width="200" alt="Local digest of the day and the question box"> | <img src="docs/alerts.png" width="200" alt="Alert settings for one stock"> |
 
+<p align="center"><img src="docs/themes.png" width="640" alt="The same cards in the light theme and the dark theme"><br><em>Light and dark themes, switched with the bulb next to the title.</em></p>
+
 The screenshots use made-up positions and sample prices, not my real portfolio.
 
-**Contents:** [What it does](#what-it-does) · [Running it](#running-it) · [Building the Mac app](#building-the-mac-app) · [Tests](#tests) · [How the P&L math works](#how-the-pl-math-works) · [How prices work](#how-prices-work) · [How alerts work](#how-alerts-work) · [How the Ask view works](#how-the-ask-view-works) · [Storage and privacy](#storage-and-privacy) · [How the app is put together](#how-the-app-is-put-together) · [License](#license)
+**Contents:** [Quick start](#quick-start) · [What it does](#what-it-does) · [Running it](#running-it) · [Building the Mac app](#building-the-mac-app) · [Tests](#tests) · [How the P&L math works](#how-the-pl-math-works) · [How prices work](#how-prices-work) · [How alerts work](#how-alerts-work) · [How the Ask view works](#how-the-ask-view-works) · [Storage and privacy](#storage-and-privacy) · [How the app is put together](#how-the-app-is-put-together) · [License](#license)
+
+## Quick start
+
+You need [Node.js](https://nodejs.org) 22.12 or newer, [Git](https://git-scm.com), and a free API key from [finnhub.io](https://finnhub.io). Then, in a terminal:
+
+```bash
+git clone https://github.com/Dheerajpavuluri/portfolio-widget.git
+cd portfolio-widget
+npm install
+cp .env.example .env
+```
+
+Open `.env` in any text editor, put your Finnhub key after `FINNHUB_API_KEY=`, save it, and start the app:
+
+```bash
+npm run dev
+```
+
+The widget opens in its own window, empty at first. Click **Add lot** to enter a purchase. To build a Mac app you can double-click instead, see [Building the Mac app](#building-the-mac-app). [Running it](#running-it) has the details, including the optional AI settings.
 
 ## What it does
 
