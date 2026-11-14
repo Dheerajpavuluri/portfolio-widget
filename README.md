@@ -4,13 +4,11 @@ A small desktop widget that shows my stock positions and how they are doing, wit
 
 Built with Electron, React and TypeScript. My data stays on my machine.
 
-<p align="center"><img src="docs/demo.gif" width="440" alt="Switching between the light and dark themes with the bulb, scrolling through the position cards, then opening the Summary and Ask views"></p>
+<p align="center"><img src="docs/demo-tour.gif" width="440" alt="Switching between the light and dark themes with the bulb, scrolling through the position cards, then opening the Summary and Ask views"></p>
 
 | Cards | Summary | Ask | Alerts |
 | --- | --- | --- | --- |
 | <img src="docs/cards.png" width="200" alt="Position cards with price, day change, lots and P&L"> | <img src="docs/summary.png" width="200" alt="All positions in one table with weights and best and worst performers"> | <img src="docs/ask.png" width="200" alt="Local digest of the day and the question box"> | <img src="docs/alerts.png" width="200" alt="Alert settings for one stock"> |
-
-<p align="center"><img src="docs/themes.png" width="640" alt="The same cards in the light theme and the dark theme"><br><em>Light and dark themes, switched with the bulb next to the title.</em></p>
 
 The screenshots use made-up positions and sample prices, not my real portfolio.
 
