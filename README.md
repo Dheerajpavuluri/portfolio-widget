@@ -12,7 +12,7 @@ Built with Electron, React and TypeScript. My data stays on my machine.
 
 The screenshots use made-up positions and sample prices, not my real portfolio.
 
-**Contents:** [Quick start](#quick-start) · [What it does](#what-it-does) · [Running it](#running-it) · [Building the Mac app](#building-the-mac-app) · [Tests](#tests) · [How the P&L math works](#how-the-pl-math-works) · [How prices work](#how-prices-work) · [How alerts work](#how-alerts-work) · [How the Ask view works](#how-the-ask-view-works) · [Storage and privacy](#storage-and-privacy) · [How the app is put together](#how-the-app-is-put-together) · [License](#license)
+**Contents:** [Quick start](#quick-start) · [What it does](#what-it-does) · [Settings and commands](#settings-and-commands) · [Building the Mac app](#building-the-mac-app) · [Tests](#tests) · [How the P&L math works](#how-the-pl-math-works) · [How prices work](#how-prices-work) · [How alerts work](#how-alerts-work) · [How the Ask view works](#how-the-ask-view-works) · [Storage and privacy](#storage-and-privacy) · [How the app is put together](#how-the-app-is-put-together) · [License](#license)
 
 ## Quick start
 
@@ -31,7 +31,7 @@ Open `.env` in any text editor, put your Finnhub key after `FINNHUB_API_KEY=`, s
 npm run dev
 ```
 
-The widget opens in its own window, empty at first. Click **Add lot** to enter a purchase. To build a Mac app you can double-click instead, see [Building the Mac app](#building-the-mac-app). [Running it](#running-it) has the details, including the optional AI settings.
+The widget opens in its own window, empty at first. Click **Add lot** to enter a purchase. To build a Mac app you can double-click instead, see [Building the Mac app](#building-the-mac-app). [Settings and commands](#settings-and-commands) lists the optional AI settings and the other commands.
 
 ## What it does
 
@@ -46,31 +46,26 @@ The widget opens in its own window, empty at first. Click **Add lot** to enter a
 - **Light and dark theme.** The bulb button next to the title switches between them: lit for light, off for dark. Until I pick one, the app follows the system setting; after that it remembers my choice, and the window's title bar follows it too.
 - **Widget.** A compact window that can stay on top of other windows and reopens where I left it. Only one copy runs at a time.
 
-## Running it
+## Settings and commands
 
-You need Node.js 22.12 or newer, and a free API key from [finnhub.io](https://finnhub.io).
+All settings live in `.env`, which `.gitignore` keeps out of the repo:
 
-Copy the settings template and put the key in it:
+| Setting | Needed | What it does |
+| --- | --- | --- |
+| `FINNHUB_API_KEY` | yes | prices, market status, earnings and news |
+| `ANTHROPIC_API_KEY` | no | answers questions in the Ask view with Claude instead of Ollama |
+| `ANTHROPIC_MODEL` | no | which Claude model to use (default `claude-haiku-5-5`) |
+| `OLLAMA_MODEL` | no | which local model to use (default `llama3.2`) |
 
-```bash
-cp .env.example .env
-```
+For the Ask view without an Anthropic key, install [Ollama](https://ollama.com) and run `ollama pull llama3.2`. The digest works without either model.
 
-```
-FINNHUB_API_KEY=your_key_here
-```
-
-`.gitignore` excludes `.env`, so the key never reaches the repo.
-
-For the Ask view, either install [Ollama](https://ollama.com) and run `ollama pull llama3.2`, or set `ANTHROPIC_API_KEY` in the same `.env` file to use Claude instead. Optional settings: `OLLAMA_MODEL` (default `llama3.2`) and `ANTHROPIC_MODEL` (default `claude-haiku-5-5`). The digest works without either model.
-
-Then:
-
-```bash
-npm install
-npm run dev      # development: the window reloads when renderer code changes
-npm start        # builds everything and runs the built app
-```
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | runs the app for development; the window reloads when renderer code changes |
+| `npm start` | builds everything and runs the built app |
+| `npm run dist` | builds the Mac app (see below) |
+| `npm test` | runs every test once |
+| `npm run typecheck` | type-checks the app, the window code and the main-process tests |
 
 Changes to `src/main` or `src/preload` need `npm run dev` to be restarted. Closing the window quits the app on every platform, including macOS.
 
@@ -102,13 +97,7 @@ The package only contains the built code (`dist/`, `dist-electron/` and `package
 
 ## Tests
 
-```bash
-npm test             # runs every test once
-npm run test:watch   # re-runs tests on save
-npm run typecheck    # the app, the main-process tests and the window code
-```
-
-The tests cover:
+`npm test` runs every test once, and `npm run test:watch` re-runs them on save. They cover:
 
 - the P&L math, including the two-lot Micron case below (`src/shared/pnl.test.ts`)
 - lot validation (`src/shared/validateLot.test.ts`)
@@ -200,11 +189,11 @@ The decisions are pure functions in `src/main/alerts.ts`: given the latest numbe
 
 | | Ollama (default) | Claude (when `ANTHROPIC_API_KEY` is set) |
 | --- | --- | --- |
-| Runs | on my Mac, at `127.0.0.1:11434` | Anthropic's API |
+| Runs | on my own computer, at `127.0.0.1:11434` | Anthropic's API |
 | My data | never leaves the machine | sent with each question |
 | If unavailable | a plain message saying how to install it or pull the model | a plain message about the key or the connection |
 
-The window shows which model is active, and whether my data stays on the Mac.
+The window shows which model is active, and whether my data stays on my computer.
 
 **What gets sent, and when.** The window only sends my question. The main process adds the data, and only when I ask:
 
@@ -233,7 +222,7 @@ Everything lives in the app's data folder, the same one for `npm run dev` and th
 
 The chosen view and theme are display preferences, so they are kept in the window's own local storage instead.
 
-Nothing is stored in the project folder. Network traffic is limited to Finnhub requests (quotes, market status, earnings and news), which carry ticker symbols and nothing about my positions, plus questions I ask in the Ask view. Those go to Ollama on my own machine, or to Anthropic only if I have added an Anthropic key.
+Apart from `.env` while developing, nothing is stored in the project folder. Network traffic is limited to Finnhub requests (quotes, market status, earnings and news), which carry ticker symbols and nothing about my positions, plus questions I ask in the Ask view. Those go to Ollama on my own machine, or to Anthropic only if I have added an Anthropic key.
 
 **How saving works:**
 
