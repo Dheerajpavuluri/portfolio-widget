@@ -12,6 +12,8 @@ Built with Electron, React and TypeScript. My data stays on my machine.
 
 The screenshots use made-up positions and sample prices, not my real portfolio.
 
+**Contents:** [What it does](#what-it-does) · [Running it](#running-it) · [Building the Mac app](#building-the-mac-app) · [Tests](#tests) · [How the P&L math works](#how-the-pl-math-works) · [How prices work](#how-prices-work) · [How alerts work](#how-alerts-work) · [How the Ask view works](#how-the-ask-view-works) · [Storage and privacy](#storage-and-privacy) · [How the app is put together](#how-the-app-is-put-together) · [License](#license)
+
 ## What it does
 
 - **Lots.** I add, edit and delete purchases (ticker, shares, buy price per share, date). Fractional shares are fine.
@@ -22,13 +24,18 @@ The screenshots use made-up positions and sample prices, not my real portfolio.
 - **Summary view.** Every stock in one table: share of the portfolio, value, today's move and total P&L, plus the best and worst performers today and overall.
 - **Alerts.** Desktop notifications I set per stock: today's move passing a percentage, total P&L reaching a gain target or a loss limit, earnings within a day, and new company news. Nothing else notifies me.
 - **Ask view.** A short digest of the day, built on my machine from my own numbers. Below it, a box for plain questions like "How am I doing on MU?" or "What moved most today?". A local model answers through Ollama, or Claude if I add an Anthropic key.
+- **Light and dark theme.** The bulb button next to the title switches between them: lit for light, off for dark. Until I pick one, the app follows the system setting; after that it remembers my choice, and the window's title bar follows it too.
 - **Widget.** A compact window that can stay on top of other windows and reopens where I left it. Only one copy runs at a time.
 
 ## Running it
 
-You need Node.js 22 or newer, and a free API key from [finnhub.io](https://finnhub.io).
+You need Node.js 22.12 or newer, and a free API key from [finnhub.io](https://finnhub.io).
 
-Put the key in a file called `.env` in the project folder:
+Copy the settings template and put the key in it:
+
+```bash
+cp .env.example .env
+```
 
 ```
 FINNHUB_API_KEY=your_key_here
@@ -36,13 +43,7 @@ FINNHUB_API_KEY=your_key_here
 
 `.gitignore` excludes `.env`, so the key never reaches the repo.
 
-For the Ask view, either install [Ollama](https://ollama.com) and run `ollama pull llama3.2`, or add an Anthropic key to the same `.env` file to use Claude instead:
-
-```
-ANTHROPIC_API_KEY=your_anthropic_key
-```
-
-Optional settings in `.env`: `OLLAMA_MODEL` (default `llama3.2`) and `ANTHROPIC_MODEL` (default `claude-haiku-5-5`). The digest works without either model.
+For the Ask view, either install [Ollama](https://ollama.com) and run `ollama pull llama3.2`, or set `ANTHROPIC_API_KEY` in the same `.env` file to use Claude instead. Optional settings: `OLLAMA_MODEL` (default `llama3.2`) and `ANTHROPIC_MODEL` (default `claude-haiku-5-5`). The digest works without either model.
 
 Then:
 
@@ -85,7 +86,7 @@ The package only contains the built code (`dist/`, `dist-electron/` and `package
 ```bash
 npm test             # runs every test once
 npm run test:watch   # re-runs tests on save
-npm run typecheck
+npm run typecheck    # the app, the main-process tests and the window code
 ```
 
 The tests cover:
@@ -211,6 +212,8 @@ Everything lives in the app's data folder, the same one for `npm run dev` and th
 | `window.json` | window size, position and whether it stays on top |
 | `.env` | API keys, for the packaged app (while developing, the project folder's `.env` is read first) |
 
+The chosen view and theme are display preferences, so they are kept in the window's own local storage instead.
+
 Nothing is stored in the project folder. Network traffic is limited to Finnhub requests (quotes, market status, earnings and news), which carry ticker symbols and nothing about my positions, plus questions I ask in the Ask view. Those go to Ollama on my own machine, or to Anthropic only if I have added an Anthropic key.
 
 **How saving works:**
@@ -225,10 +228,44 @@ Keys are read from `.env` (or environment variables of the same names) by the ma
 
 ## How the app is put together
 
-Electron runs two kinds of process. The main process has full Node.js access. The renderer is the web page I see. I keep the page locked down:
+Electron runs two kinds of process. The main process has full Node.js access. The renderer is the web page I see. The page only talks to the main process through a small bridge, and only the main process touches files, keys and the network:
+
+```mermaid
+flowchart TB
+  UI["<b>Window</b><br/>Cards, Summary and Ask views<br/>React, sandboxed, no Node.js"]
+  API["<b>Preload bridge</b><br/>window.portfolio"]
+  IPC["<b>IPC handlers</b> (main process)<br/>validate every input"]
+
+  subgraph Main["Main process (Node.js)"]
+    Store["PortfolioStore<br/>atomic JSON writes"]
+    Copilot["Copilot and digest"]
+    Quotes["QuoteService<br/>refresh every 60 s"]
+    Alerts["AlertService"]
+  end
+
+  Files[("Data folder<br/>lots, alert settings,<br/>window state, .env")]
+  Models[("Ollama on this computer<br/>or the Anthropic API")]
+  Finnhub[("Finnhub API")]
+  Notify[["Desktop<br/>notifications"]]
+
+  UI -->|calls| API
+  API -->|IPC| IPC
+  IPC --> Store
+  IPC --> Copilot
+  IPC --> Quotes
+  Quotes -.->|price updates| API
+  Quotes --> Alerts
+  Store --> Files
+  Copilot -->|only when I ask| Models
+  Quotes -->|quotes, market status| Finnhub
+  Alerts -->|earnings, news| Finnhub
+  Alerts --> Notify
+```
+
+I keep the page locked down:
 
 - **Context isolation, sandbox, and no Node.js in the page.** The page cannot reach the file system, environment variables or the API key.
-- **One narrow bridge.** The preload script exposes a small set of functions on `window.portfolio` (see `PortfolioApi` in `src/shared/types.ts`): lots, quotes, alert settings, the copilot, the digest, app info and keep-on-top. Each one but `onQuotes` sends an IPC message to the main process; `onQuotes` receives the price updates the main process pushes after each refresh. Only the price data is passed to the page, never Electron's IPC event object.
+- **One narrow bridge.** The preload script exposes a small set of functions on `window.portfolio` (see `PortfolioApi` in `src/shared/types.ts`): lots, quotes, alert settings, the copilot, the digest, app info, keep-on-top and the theme. Each one but `onQuotes` sends an IPC message to the main process; `onQuotes` receives the price updates the main process pushes after each refresh. Only the price data is passed to the page, never Electron's IPC event object.
 - **The main process checks everything.** It re-validates every lot and alert setting that comes over IPC, even though the form already checked it, and it only answers messages from the app's own page.
 - **The page loads nothing from outside.** The built page has a Content Security Policy that only allows the app's own files. It cannot navigate away or open new windows.
 
@@ -241,7 +278,12 @@ src/
 scripts/
   dev.mjs     starts Vite and Electron together for development
   clean.mjs   empties a build folder before rebuilding
+.env.example  the settings template
 docs/         screenshots and the demo GIF for this README
 ```
 
 The window remembers its size and position in `window.json`. If the saved position is no longer on any screen, for example after unplugging a monitor, it opens in the default spot instead. That save happens synchronously while the app quits, because an asynchronous write can be cut off before it finishes.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
