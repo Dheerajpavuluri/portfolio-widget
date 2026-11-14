@@ -4,7 +4,7 @@ A small desktop widget that shows my stock positions and how they are doing, wit
 
 Built with Electron, React and TypeScript. My data stays on my machine.
 
-<p align="center"><img src="docs/demo.gif" width="440" alt="Scrolling through the position cards, then switching to the Summary and Ask views"></p>
+<p align="center"><img src="docs/demo.gif" width="440" alt="Switching between the light and dark themes with the bulb, scrolling through the position cards, then opening the Summary and Ask views"></p>
 
 | Cards | Summary | Ask | Alerts |
 | --- | --- | --- | --- |
