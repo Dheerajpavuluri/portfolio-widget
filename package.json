@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Desktop widget that tracks my stock lots with live prices and combined P&L.",
   "author": "Dheeraj Pavuluri",
+  "license": "MIT",
   "private": true,
   "main": "dist-electron/main/main.js",
   "scripts": {
