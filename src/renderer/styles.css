@@ -102,7 +102,8 @@ button.link.danger:hover {
   color: var(--danger);
 }
 
-input {
+input,
+textarea {
   font: inherit;
   width: 100%;
   padding: 6px 8px;
@@ -112,7 +113,12 @@ input {
   color: var(--text);
 }
 
-input:focus {
+textarea {
+  resize: vertical;
+}
+
+input:focus,
+textarea:focus {
   outline: 2px solid var(--accent);
   outline-offset: -1px;
 }
@@ -550,22 +556,6 @@ input:focus {
 .digest p,
 .ask p {
   margin: 0;
-}
-
-textarea {
-  font: inherit;
-  width: 100%;
-  padding: 6px 8px;
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  background: var(--bg);
-  color: var(--text);
-  resize: vertical;
-}
-
-textarea:focus {
-  outline: 2px solid var(--accent);
-  outline-offset: -1px;
 }
 
 .ask-actions {
